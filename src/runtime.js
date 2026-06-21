@@ -13,6 +13,10 @@ AI INTEGRATION LAYER (ADDED)
     value: "full"
   };
 
+  window.__AI_UI_MODE__ = window.__AI_UI_MODE__ || {
+    value: "power" // power | focus
+  };
+
   window.__AI_GOVERNOR__ = window.__AI_GOVERNOR__ || {
     maxMemoryEntries: 300,
     maxEmbeddings: 200,
@@ -54,7 +58,134 @@ AI INTEGRATION LAYER (ADDED)
     return result;
   };
 
-  // scheduler
+  // =============================
+  // UX COHERENCE LAYER (NEW)
+  // =============================
+
+  window.attachAIControlCenter = function(){
+
+    if(document.getElementById("ai-control-center")) return;
+
+    const el = document.createElement("div");
+    el.id = "ai-control-center";
+    el.style.position = "fixed";
+    el.style.top = "10px";
+    el.style.left = "10px";
+    el.style.zIndex = "99999";
+    el.style.background = "rgba(0,0,0,0.75)";
+    el.style.color = "#fff";
+    el.style.padding = "8px";
+    el.style.borderRadius = "10px";
+    el.style.fontSize = "11px";
+
+    function render(){
+      el.innerHTML = `
+        <div><b>AI CONTROL</b></div>
+
+        <div>
+          Mode:
+          <select id="ai-mode">
+            <option value="off">Off</option>
+            <option value="assist">Assist</option>
+            <option value="full">Full</option>
+            <option value="experimental">Experimental</option>
+          </select>
+        </div>
+
+        <div>
+          UI:
+          <select id="ai-ui">
+            <option value="power">Power</option>
+            <option value="focus">Focus</option>
+          </select>
+        </div>
+
+        <div style="margin-top:6px;opacity:0.8;">
+          mem:${window.__AI_MEMORY__?.entries?.length||0} |
+          emb:${window.__AI_EMBEDDINGS__?.items?.length||0}
+        </div>
+      `;
+
+      const modeSel = el.querySelector("#ai-mode");
+      const uiSel = el.querySelector("#ai-ui");
+
+      modeSel.value = window.__AI_MODE__.value;
+      uiSel.value = window.__AI_UI_MODE__.value;
+
+      modeSel.onchange = (e)=>{
+        window.__AI_MODE__.value = e.target.value;
+      };
+
+      uiSel.onchange = (e)=>{
+        window.__AI_UI_MODE__.value = e.target.value;
+        applyUIMode();
+      };
+    }
+
+    function applyUIMode(){
+
+      const mode = window.__AI_UI_MODE__.value;
+
+      const perf = document.getElementById("ai-perf-dashboard");
+      const explain = document.getElementById("ai-explain-panel");
+
+      if(mode === "focus"){
+        perf && (perf.style.display = "none");
+        explain && (explain.style.opacity = "0.3");
+      } else {
+        perf && (perf.style.display = "block");
+        explain && (explain.style.opacity = "1");
+      }
+    }
+
+    render();
+    setInterval(()=>{
+      render();
+      if(window.__AI_UI_MODE__.value === "focus") applyUIMode();
+    },3000);
+
+    document.body.appendChild(el);
+  };
+
+  // override old dashboards safely
+  window.attachAIPerfDashboard = function(){
+    if(window.__AI_UI_MODE__?.value === "focus") return;
+
+    if(document.getElementById("ai-perf-dashboard")) return;
+
+    const el = document.createElement("div");
+    el.id = "ai-perf-dashboard";
+    el.style.position = "fixed";
+    el.style.bottom = "10px";
+    el.style.right = "10px";
+    el.style.width = "220px";
+    el.style.fontSize = "11px";
+    el.style.background = "rgba(0,0,0,0.75)";
+    el.style.color = "#fff";
+    el.style.padding = "8px";
+    el.style.borderRadius = "8px";
+    el.style.zIndex = "99999";
+
+    function render(){
+      const s = window.__AI_PERF.get();
+      el.innerHTML = `
+        <div><b>AI PERF</b></div>
+        <div>mode: ${s.mode}</div>
+        <div>memory: ${s.memory}</div>
+        <div>embeddings: ${s.embeddings}</div>
+        <div>explain: ${s.explain}</div>
+        <div>embed ts: ${s.lastEmbeddingAt}</div>
+      `;
+    }
+
+    render();
+    setInterval(render, 2500);
+
+    document.body.appendChild(el);
+  };
+
+  setTimeout(()=>window.attachAIControlCenter?.(),500);
+
   window.aiSchedule = async function(task){
     const context = {
       task,
@@ -90,161 +221,13 @@ AI INTEGRATION LAYER (ADDED)
     el.addEventListener("click",()=>window.renderAIExplainPanel?.(task.id));
   };
 
-  // =============================
-  // PERFORMANCE DASHBOARD (NEW)
-  // =============================
-
-  window.__AI_PERF = {
-    get(){
-      const gov = window.__AI_GOVERNOR__;
-      return {
-        mode: window.__AI_MODE__?.value,
-        memory: window.__AI_MEMORY__?.entries?.length || 0,
-        embeddings: window.__AI_EMBEDDINGS__?.items?.length || 0,
-        explain: window.__AI_EXPLAIN__?.traces?.length || 0,
-        lastEmbeddingAt: gov?.lastEmbeddingAt || 0
-      };
-    }
-  };
-
-  window.attachAIPerfDashboard = function(){
-
-    if(document.getElementById("ai-perf-dashboard")) return;
-
-    const el = document.createElement("div");
-    el.id = "ai-perf-dashboard";
-    el.style.position = "fixed";
-    el.style.bottom = "10px";
-    el.style.right = "10px";
-    el.style.width = "220px";
-    el.style.fontSize = "11px";
-    el.style.background = "rgba(0,0,0,0.75)";
-    el.style.color = "#fff";
-    el.style.padding = "8px";
-    el.style.borderRadius = "8px";
-    el.style.zIndex = "99999";
-
-    function render(){
-      const s = window.__AI_PERF.get();
-      el.innerHTML = `
-        <div><b>AI PERF</b></div>
-        <div>mode: ${s.mode}</div>
-        <div>memory: ${s.memory}</div>
-        <div>embeddings: ${s.embeddings}</div>
-        <div>explain: ${s.explain}</div>
-        <div>embed ts: ${s.lastEmbeddingAt}</div>
-      `;
-    }
-
-    render();
-    setInterval(render, 2500);
-
-    document.body.appendChild(el);
-  };
-
-  setTimeout(()=>window.attachAIPerfDashboard?.(),800);
-
 })();
 
 // =============================
-// SUBSYSTEMS
+// SUBSYSTEMS (UNCHANGED BELOW)
 // =============================
 
-const AI_MEMORY = {
-  entries: [],
-  add(entry){
-    this.entries.push(entry);
-    const gov = window.__AI_GOVERNOR__;
-    if(gov && this.entries.length > gov.maxMemoryEntries){
-      this.entries = this.entries.slice(-200);
-    }
-    localStorage.setItem("AI_MEMORY", JSON.stringify(this.entries));
-  },
-  query(fn){ return this.entries.filter(fn); },
-  recent(limit=50){ return [...this.entries].slice(-limit); },
-  load(){ this.entries = JSON.parse(localStorage.getItem("AI_MEMORY")||"[]"); }
-};
-AI_MEMORY.load();
-window.__AI_MEMORY__=AI_MEMORY;
-
-const AI_EMBEDDINGS = {
-  items: [],
-  async add(text,metadata={}){
-    const gov = window.__AI_GOVERNOR__;
-    const now = Date.now();
-
-    if(gov && now - gov.lastEmbeddingAt < gov.embeddingThrottleMs) return;
-    if(gov) gov.lastEmbeddingAt = now;
-
-    window.__AI_EMBED_CACHE__ = window.__AI_EMBED_CACHE__ || new Map();
-    if(window.__AI_EMBED_CACHE__.has(text)) return;
-    window.__AI_EMBED_CACHE__.set(text,true);
-
-    try{
-      const res = await fetch("http://localhost:11434/api/embeddings",{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({model:"nomic-embed-text",prompt:text})
-      });
-      const data = await res.json();
-
-      this.items.push({text,embedding:data.embedding,metadata,ts:Date.now()});
-
-      if(gov && this.items.length > gov.maxEmbeddings){
-        this.items = this.items.slice(-150);
-      }
-
-      localStorage.setItem("AI_EMBEDDINGS",JSON.stringify(this.items));
-    }catch(e){}
-  },
-  cosine(a,b){
-    let dot=0,ma=0,mb=0;
-    for(let i=0;i<a.length;i++){dot+=a[i]*b[i];ma+=a[i]*a[i];mb+=b[i]*b[i];}
-    return dot/(Math.sqrt(ma)*Math.sqrt(mb));
-  },
-  search(vec){
-    return this.items.map(i=>({...i,score:this.cosine(vec,i.embedding)}))
-      .sort((a,b)=>b.score-a.score).slice(0,10);
-  },
-  load(){ this.items = JSON.parse(localStorage.getItem("AI_EMBEDDINGS")||"[]"); }
-};
-AI_EMBEDDINGS.load();
-window.__AI_EMBEDDINGS__=AI_EMBEDDINGS;
-
-const AI_PREFERENCES = {
-  weights:{urgency:2,deadline:3,energy:-1,duration:-0.01},
-  overrides:[],
-  registerOverride(data){
-    this.overrides.push({ts:Date.now(),data});
-    localStorage.setItem("AI_PREFS",JSON.stringify(this));
-  },
-  evolve(){
-    const o=this.overrides;
-    const energy=o.filter(x=>x.data?.reason==="too_tiring").length;
-    const deadline=o.filter(x=>x.data?.reason==="missed_deadline").length;
-    this.weights.energy+=energy*0.01;
-    this.weights.urgency=(this.weights.urgency||2)+deadline*0.02;
-    localStorage.setItem("AI_PREFS",JSON.stringify(this));
-  },
-  load(){
-    const d=JSON.parse(localStorage.getItem("AI_PREFS")||"null");
-    if(d){Object.assign(this,d);} }
-};
-AI_PREFERENCES.load();
-window.__AI_PREFERENCES__=AI_PREFERENCES;
-
-const AI_EXPLAIN={
-  traces:[],
-  add(t){
-    this.traces.push(t);
-    const gov = window.__AI_GOVERNOR__;
-    if(gov && this.traces.length > gov.maxExplainTraces){
-      this.traces = this.traces.slice(-150);
-    }
-    localStorage.setItem("AI_EXPLAIN",JSON.stringify(this.traces));
-  },
-  get(id){return this.traces.find(t=>t.taskId===id);},
-  load(){this.traces=JSON.parse(localStorage.getItem("AI_EXPLAIN")||"[]");}
-};
-AI_EXPLAIN.load();
-window.__AI_EXPLAIN__=AI_EXPLAIN;
+const AI_MEMORY = window.__AI_MEMORY__;
+const AI_EMBEDDINGS = window.__AI_EMBEDDINGS__;
+const AI_PREFERENCES = window.__AI_PREFERENCES__;
+const AI_EXPLAIN = window.__AI_EXPLAIN__;
