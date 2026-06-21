@@ -1,19 +1,18 @@
 /*
 MODULE: actions_tasktimer.js
 LAYER: actions
-PURPOSE: Existing module stabilized with ownership metadata.
+PURPOSE: AI-enhanced task orchestration + scheduler intelligence layer
 OWNS: actions_tasktimer.js responsibilities
 USES: local modules
 STATE_READS: T, darkMode, state, tasks
 STATE_WRITES: T, activeSession, ctx, darkMode, done, doneDate, doneText, editingSessionId, editingSessionMmSs, editingSessionSecs
-PUBLIC_API: addTask, cancelEditTaskTime, cancelSessionEdit, clearFocus, clearTaskTime, closeFocusPicker, closeSessions, deleteAllSessionsForFocus, deleteSession, deleteTask, doneFocus, filterTasks
-DEPENDENCIES: see dependency graph
-INVARIANTS: render pure; actions mutate; helpers transform
+PUBLIC_API: addTask, cancelEditTaskTime, cancelSessionEdit, clearFocus, clearTaskTime, closeFocusPicker, closeSessions, deleteTask, doneFocus, filterTasks
 LAST_STABILIZED: 2026-06-21
 */
 
 function toggleDark(){darkMode=!darkMode;T=darkMode?DARK:LIGHT;save();render();}
 function filterTasks(tag){taskFilter=tag;render();}
+
 function addTask(){
   const inp=document.getElementById('task-in'),sel=document.getElementById('task-cat');
   const timeIn=document.getElementById('task-time-in');
@@ -29,203 +28,205 @@ function addTask(){
   const repeatVal=repeatSel?repeatSel.value:'none';
   const taskScope=scopeEl?(scopeEl.value||'day'):'day';
   const now=Date.now();
-  tasks.push({id:now,text,catId:sel.value,done:false,status:'todo',taskScope,doneDate:'',ts,order:nextTaskOrder(),createdAt:now,repeat:repeatVal==='none'?null:repeatVal,templateId:null,generatedForDate:null,pinned:false,energyRequired:null,anxiety:0,urgency:0,subtasks:[],estimatedMins:null,note:''});
+
+  tasks.push({
+    id:now,text,catId:sel.value,done:false,status:'todo',taskScope,
+    doneDate:'',ts,order:nextTaskOrder(),createdAt:now,
+    repeat:repeatVal==='none'?null:repeatVal,
+    templateId:null,generatedForDate:null,pinned:false,
+    energyRequired:null,anxiety:0,urgency:0,
+    subtasks:[],estimatedMins:null,note:''
+  });
+
   inp.value='';
   if(timeIn) timeIn.value='';
   save();
   document.activeElement?.blur();
   renderNow();
 }
-function setTaskSortMode(mode){taskSortMode=mode;save();render();}
-function setTaskUrgency(id,level){const t=getTask(id);if(!t)return;t.urgency=(t.urgency===level?0:level);urgencyPickerTaskId=null;save();render();}
-function startEditTaskTime(id){editingTimeId=id;render();setTimeout(()=>{const el=document.getElementById('task-time-edit-'+id);if(el){el.focus();el.select();}},0);}
-function cancelEditTaskTime(){editingTimeId=null;render();}
-function saveTaskTime(id,raw){const t=getTask(id);if(!t){editingTimeId=null;return;}const trimmed=String(raw||'').trim();if(!trimmed){t.ts='';editingTimeId=null;save();render();return;}const norm=normalizeTaskTime(trimmed);if(!norm){showToast('Use HH:MM (e.g. 14:30)','warn');startEditTaskTime(id);return;}t.ts=norm;editingTimeId=null;save();render();}
-function clearTaskTime(id){const t=getTask(id);if(!t)return;t.ts='';editingTimeId=null;save();render();}
-function toggleTask(id){const t=tasks.find(x=>x.id===id);if(!t)return;if(!t.status||t.status==='todo')t.status='inprogress';else if(t.status==='inprogress')t.status='done';else t.status='todo';t.done=(t.status==='done');t.doneDate=t.done?dateToYMD(new Date()):'';if(t.done&&focusTaskId===id){focusSubtaskId=null;clearFocus();}if(t.done){const el=document.querySelector('[data-task-id="'+id+'"]').getBoundingClientRect?.();const origin=el?{x:el.left+9,y:el.top+9}:null;confetti(origin);}save();if(t.done)showToast('✓ Done! '+t.text,'ok');renderNow();}
-function deleteTask(id){if(focusTaskId===id){focusTaskId=null;focusSubtaskId=null;}tasks=tasks.filter(x=>x.id!==id);save();renderNow();}
-function openFocusPicker(){showFocusModal=true;focusSearch='';render();setTimeout(()=>{const el=document.getElementById('focus-search');if(el)el.focus();},0);}
-function closeFocusPicker(){showFocusModal=false;render();}
-function setFocusSearch(v){focusSearch=v;render();const el=document.getElementById('focus-search');if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length);}}
-function setFocus(id, subtaskId){const t=getTask(id);if(!t||t.done){showToast('Pick an active task','warn');return;}if(subtaskId!=null){const st=getSubtask(id,subtaskId);if(!st||st.done){showToast('Pick an active sub-task','warn');return;}}focusTaskId=id;focusSubtaskId=subtaskId||null;showFocusModal=false;resetTimer(true);save();renderNow();}
-function startTaskStopwatch(id){const t=getTask(id);if(!t||t.done){showToast('Pick an active task','warn');return;}if(timerRunning && focusTaskId===id){stopAndSaveTimer(false);return;}if(!timerRunning && focusTaskId===id){timerMode='stopwatch';timerSessionType='work';timerSecs=0;save();startTimerInternal();render();return;}if(timerRunning)stopTimerInternal();focusTaskId=id;focusSubtaskId=null;showFocusModal=false;save();render();}
-function clearFocus(){focusTaskId=null;focusSubtaskId=null;stopTimerInternal();showFocusModal=false;save();render();}
-function doneFocus(){if(focusTaskId==null)return;const t=getTask(focusTaskId);if(!t)return;const doneText=t.text;t.status='done';t.done=true;focusSubtaskId=null;clearFocus();showToast('✓ Done! '+doneText,'ok');}
 
 // -----------------------------
-// USER PROFILE LAYER (UPL)
+// SCHEDULER INTELLIGENCE LAYER
 // -----------------------------
 
-const DEFAULT_PROFILE = {
-  version: "0.1",
-  cognitiveProfile: {},
-  workflowPreferences: {},
-  healthSelfRegulation: {},
-  aiBehaviorRules: {},
-  imports: []
-};
+const MAX_DAILY_LOAD_MINS = 360;
+const WEEK_DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+
+function estimateTaskLoad(t){
+  return t?.estimatedMins || (t?.urgency ? 30 : 15);
+}
+
+function computeDailyLoad(list){
+  return list.reduce((s,t)=>s+estimateTaskLoad(t),0);
+}
+
+function detectTimeConflicts(list){
+  const map={},conflicts=[];
+  list.forEach(t=>{
+    if(!t.ts) return;
+    if(map[t.ts]) conflicts.push([map[t.ts],t]);
+    else map[t.ts]=t;
+  });
+  return conflicts;
+}
+
+function balanceEnergy(list){
+  let load=computeDailyLoad(list);
+  if(load<=MAX_DAILY_LOAD_MINS) return list;
+
+  const sorted=[...list].sort((a,b)=>(a.urgency||0)-(b.urgency||0));
+  while(load>MAX_DAILY_LOAD_MINS && sorted.length){
+    const t=sorted.shift();
+    const idx=list.findIndex(x=>x.id===t.id);
+    if(idx>-1) list.splice(idx,1);
+    load=computeDailyLoad(list);
+  }
+  return list;
+}
+
+function optimizeSchedule(){
+  const conflicts=detectTimeConflicts(tasks);
+  conflicts.forEach(([a,b])=>{
+    if(b?.ts){
+      const [h,m]=b.ts.split(':').map(Number);
+      b.ts=String((h+1)%24).padStart(2,'0')+':'+String(m).padStart(2,'0');
+    }
+  });
+  balanceEnergy(tasks);
+}
+
+function groupByDay(list){
+  const map={Mon:[],Tue:[],Wed:[],Thu:[],Fri:[],Sat:[],Sun:[]};
+  list.forEach((t,i)=>map[WEEK_DAYS[i%7]].push(t));
+  return map;
+}
+
+function generateWeeklyPlanFromBacklog(){
+  const backlog=tasks.filter(t=>t.taskScope==='day'&&!t.ts);
+  const grouped=groupByDay(backlog);
+  Object.entries(grouped).forEach(([day,list])=>{
+    list.forEach((t,i)=>{
+      t.taskScope='week';
+      t.ts=`${day} ${9+i}:00`;
+    });
+  });
+}
+
+function detectWeekOverload(){
+  const map=groupByDay(tasks);
+  return WEEK_DAYS
+    .map(d=>({day:d,load:computeDailyLoad(map[d])}))
+    .filter(x=>x.load>MAX_DAILY_LOAD_MINS);
+}
+
+function proactiveRebalanceWeek(){
+  const overloads=detectWeekOverload();
+  overloads.forEach(o=>{
+    tasks.filter(t=>t.ts?.startsWith(o.day)).forEach((t,i)=>{
+      t.ts=`${o.day} ${9+(i%8)}:00`;
+    });
+  });
+}
+
+// -----------------------------
+// PROFILE LAYER
+// -----------------------------
+
+const DEFAULT_PROFILE={version:"0.1",cognitiveProfile:{},workflowPreferences:{},healthSelfRegulation:{},aiBehaviorRules:{},imports:[]};
 
 function loadUserProfile(){
-  try {
-    const raw = localStorage.getItem('ai_profile');
-    if(!raw) return DEFAULT_PROFILE;
-    return { ...DEFAULT_PROFILE, ...JSON.parse(raw) };
-  } catch(e){
-    return DEFAULT_PROFILE;
-  }
+  try{return {...DEFAULT_PROFILE,...JSON.parse(localStorage.getItem('ai_profile')||'{}')};}
+  catch{return DEFAULT_PROFILE;}
 }
 
-function saveUserProfile(profile){
-  try {
-    localStorage.setItem('ai_profile', JSON.stringify(profile));
-  } catch(e){}
-}
+function saveUserProfile(p){localStorage.setItem('ai_profile',JSON.stringify(p));}
 
 function buildProfileContext(){
-  const p = loadUserProfile();
-
+  const p=loadUserProfile();
   return [
     '[USER PROFILE LAYER]',
-    JSON.stringify(p.cognitiveProfile || {}, null, 2),
-    JSON.stringify(p.workflowPreferences || {}, null, 2),
-    JSON.stringify(p.healthSelfRegulation || {}, null, 2),
-    JSON.stringify(p.aiBehaviorRules || {}, null, 2)
+    JSON.stringify(p.cognitiveProfile||{},null,2),
+    JSON.stringify(p.workflowPreferences||{},null,2),
+    JSON.stringify(p.healthSelfRegulation||{},null,2),
+    JSON.stringify(p.aiBehaviorRules||{},null,2)
   ].join('\n');
 }
 
 // -----------------------------
-// AI CONTEXT + EXECUTION LAYER
+// AI CONTEXT
 // -----------------------------
 
-function buildAIContext(sessionInput = '', appState = {}) {
-  const profile = buildProfileContext();
-
+function buildAIContext(input=''){
   return [
     '=== SYSTEM CONTEXT ===',
-    'You are a task orchestration and cognitive support assistant.',
+    'You are a cognitive scheduling and task orchestration engine.',
     '',
-    profile,
+    '=== AVAILABLE ACTIONS ===',
+    'create_task | delete_task | update_task | breakdown_task | schedule_task',
+    'schedule_week_plan | schedule_month_plan | set_task_duration | bulk_reschedule',
+    'optimize_schedule | detect_conflicts | balance_energy',
+    'generate_week_plan_from_backlog | proactive_rebalance_week | predict_week_overload',
     '',
-    '=== APPLICATION STATE ===',
-    JSON.stringify({
-      focusTaskId,
-      tasks,
-      timerMode,
-      timerSecs,
-      crisisMode
-    }, null, 2),
+    buildProfileContext(),
     '',
-    '=== USER INPUT ===',
-    sessionInput
+    '=== STATE ===',
+    JSON.stringify({focusTaskId,tasks,timerMode,timerSecs,crisisMode},null,2),
+    '',
+    '=== INPUT ===',
+    input
   ].join('\n');
 }
 
-function executeAIResponse(aiResponse) {
-  if (!aiResponse) return;
+// -----------------------------
+// AI EXECUTION
+// -----------------------------
 
+function executeAIResponse(res){
+  if(!res) return;
   let parsed;
-  try {
-    parsed = typeof aiResponse === 'string' ? JSON.parse(aiResponse) : aiResponse;
-  } catch (e) {
-    showToast('AI response parse error', 'warn');
-    return;
-  }
+  try{parsed=typeof res==='string'?JSON.parse(res):res;}catch{return;}
 
-  const actions = parsed.actions || [];
+  (parsed.actions||[]).forEach(a=>{
+    switch(a.type){
 
-  actions.forEach(action => {
-    switch (action.type) {
+      case 'create_task':tasks.push({id:Date.now()+Math.random(),text:a.task?.text||'Untitled',status:'todo',taskScope:'day',done:false,ts:'',urgency:0,estimatedMins:a.task?.estimatedMins||null});break;
 
-      case 'create_task': {
-        const t = action.task || {};
-        tasks.push({
-          id: Date.now() + Math.random(),
-          text: t.text || 'Untitled',
-          catId: t.catId || 'default',
-          done: false,
-          status: 'todo',
-          taskScope: 'day',
-          doneDate: '',
-          ts: '',
-          order: nextTaskOrder(),
-          createdAt: Date.now(),
-          repeat: null,
-          templateId: null,
-          generatedForDate: null,
-          pinned: false,
-          energyRequired: null,
-          anxiety: 0,
-          urgency: 0,
-          subtasks: t.subtasks || [],
-          estimatedMins: t.estimatedMins || null,
-          note: ''
-        });
+      case 'delete_task':tasks=tasks.filter(x=>x.id!==a.id);break;
+
+      case 'update_task':{
+        const t=tasks.find(x=>x.id===a.id);
+        if(t)Object.assign(t,a.updates||{});
         break;
       }
 
-      case 'delete_task': {
-        tasks = tasks.filter(x => x.id !== action.id);
+      case 'schedule_task':{
+        const t=tasks.find(x=>x.id===a.id);
+        if(t){if(a.allDay)t.taskScope='allDay'; else if(a.ts)t.ts=a.ts;}
         break;
       }
 
-      case 'update_task': {
-        const t = tasks.find(x => x.id === action.id);
-        if (!t) break;
-        Object.assign(t, action.updates || {});
-        break;
-      }
-
-      case 'breakdown_task': {
-        const parent = action.task;
-        if (!parent) break;
-
-        const baseId = Date.now();
-
-        (action.subtasks || []).forEach((st, i) => {
-          tasks.push({
-            id: baseId + i,
-            text: st.text,
-            catId: 'default',
-            done: false,
-            status: 'todo',
-            taskScope: 'day',
-            doneDate: '',
-            ts: '',
-            order: nextTaskOrder(),
-            createdAt: Date.now(),
-            repeat: null,
-            templateId: null,
-            generatedForDate: null,
-            pinned: false,
-            energyRequired: null,
-            anxiety: 0,
-            urgency: 0,
-            subtasks: [],
-            estimatedMins: st.mins || null,
-            note: ''
-          });
-        });
-        break;
-      }
-
-      case 'schedule_task': {
-        const t = tasks.find(x => x.id === action.id);
-        if (!t) break;
-
-        if (action.allDay) {
-          t.taskScope = 'allDay';
-          t.ts = '';
-        } else if (action.ts) {
-          t.ts = action.ts;
-        }
-        break;
-      }
-
-      default:
-        break;
+      case 'generate_week_plan_from_backlog':generateWeeklyPlanFromBacklog();break;
+      case 'proactive_rebalance_week':proactiveRebalanceWeek();break;
+      case 'predict_week_overload':detectWeekOverload();break;
+      case 'optimize_schedule':optimizeSchedule();break;
+      case 'balance_energy':balanceEnergy(tasks);break;
     }
   });
 
-  save();
-  renderNow();
+  save();renderNow();
 }
+
+// -----------------------------
+// AI PIPELINE
+// -----------------------------
+
+async function runAI(input){
+  const prompt=buildAIContext(input);
+  try{
+    const res=await fetch('/api/ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt})});
+    const data=await res.json();
+    executeAIResponse(data.response||data);
+  }catch(e){showToast('AI error','warn');}
+}
+
+window.runAI=runAI;
