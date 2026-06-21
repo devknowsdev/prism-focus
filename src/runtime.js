@@ -231,3 +231,24 @@ const AI_MEMORY = window.__AI_MEMORY__;
 const AI_EMBEDDINGS = window.__AI_EMBEDDINGS__;
 const AI_PREFERENCES = window.__AI_PREFERENCES__;
 const AI_EXPLAIN = window.__AI_EXPLAIN__;
+
+// Track last date seen by the runtime (used by rollover checks in tests)
+var _lastDateStr = new Date().toDateString();
+
+// Compatibility mapper: expose functions assigned to `window` as global bindings
+// in environments (like the Node VM test harness) where `window.foo` is not
+// automatically available as the identifier `foo`.
+try{
+  if(typeof globalThis !== 'undefined' && typeof window !== 'undefined'){
+    Object.getOwnPropertyNames(window).forEach(k=>{
+      try{
+        if(typeof window[k]==='function' && typeof globalThis[k]==='undefined'){
+          globalThis[k]=window[k];
+        }
+      }catch(e){}
+    });
+    // Also mirror commonly used shared arrays
+    if(typeof window.tasks!=='undefined' && typeof globalThis.tasks==='undefined') globalThis.tasks = window.tasks;
+    if(typeof window.habits!=='undefined' && typeof globalThis.habits==='undefined') globalThis.habits = window.habits;
+  }
+}catch(e){}

@@ -91,6 +91,7 @@ const FILES = [
   'render_modals.js','render.js','music.js','render_music.js',
   'actions_alarms_habits.js','actions_tasktimer.js','actions_tasks.js','actions_export.js',
   'actions_planner.js','actions_wizard.js','render_wizard.js','render_planner.js','runtime.js',
+  'global_api_shim.js',
 ];
 FILES.forEach(f => vm.runInContext(fs.readFileSync(path.join(SRC_DIR, f), 'utf8'), ctx));
 console.log('✓ All files loaded\n');
@@ -216,6 +217,17 @@ test('setTaskUrgency sets and toggles off', () => {
 test('saveTaskTime normalizes single-digit hour', () => {
   const id = get('tasks[0].id');
   run(`saveTaskTime(${id},'9:05')`); eq(get(`tasks.find(t=>t.id===${id}).ts`), '09:05');
+});
+
+test('saveTaskTime empty string clears time', () => {
+  const id = get('tasks[0].id');
+  run(`saveTaskTime(${id},'')`); eq(get(`tasks.find(t=>t.id===${id}).ts`), '');
+});
+
+test('clearTaskTime removes scheduled time', () => {
+  const id = get('tasks[0].id');
+  run(`saveTaskTime(${id},'09:12'); clearTaskTime(${id})`);
+  eq(get(`tasks.find(t=>t.id===${id}).ts`), '');
 });
 
 test('saveTaskTime empty string clears time', () => {

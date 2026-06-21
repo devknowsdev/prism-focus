@@ -19,6 +19,52 @@ LAST_STABILIZED: 2026-06-21
 //             state.js, storage.js (save), ui.js (showToast), render.js (render, renderNow),
 //             actions_tasktimer.js (openQuickLog), actions_alarms_habits.js (deleteHabit).
 // ---- Subtask management ----
+
+// Add task: read inputs, normalize fields, push to `tasks`, save & render
+function addTask(){
+  const inp=document.getElementById('task-in');
+  if(!inp) return;
+  const text=inp.value?.trim(); if(!text) return;
+  const catEl=document.getElementById('task-cat');
+  const timeEl=document.getElementById('task-time-in');
+  const repeatEl=document.getElementById('task-repeat');
+  const scopeEl=document.getElementById('task-scope');
+  const catId=catEl?catEl.value||'':'';
+  const rawTs=timeEl?timeEl.value.trim():'';
+  const ts=normalizeTaskTime(rawTs)||'';
+  // If user entered a non-empty time that's invalid, reject
+  if(rawTs&&rawTs.trim()!==''&&ts==='') return;
+  const repeat=(repeatEl&&repeatEl.value&&repeatEl.value!=='none')?repeatEl.value:null;
+  const taskScope=(scopeEl&&scopeEl.value)?scopeEl.value:'day';
+  const now=Date.now();
+  const t={
+    id:now,
+    text,
+    catId:catId||'',
+    done:false,
+    status:'todo',
+    ts:ts,
+    order:nextTaskOrder(),
+    createdAt:now,
+    repeat:repeat,
+    templateId:null,
+    generatedForDate:null,
+    pinned:false,
+    urgency:0,
+    subtasks:[],
+    estimatedMins:null,
+    note:'',
+    anxiety:0,
+    taskScope:taskScope,
+    doneDate:''
+  };
+  tasks.push(t);
+  inp.value=''; if(timeEl) timeEl.value=''; if(repeatEl) repeatEl.value='none'; if(scopeEl) scopeEl.value='day';
+  save(); render();
+}
+if(typeof window !== 'undefined') { window.addTask = addTask; }
+if(typeof globalThis !== 'undefined' && typeof globalThis.addTask === 'undefined') { globalThis.addTask = addTask; }
+
 function toggleSubtaskExpand(taskId){
   if(expandedSubtaskTaskIds.has(taskId)) expandedSubtaskTaskIds.delete(taskId);
   else expandedSubtaskTaskIds.add(taskId);
