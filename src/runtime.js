@@ -9,7 +9,32 @@ AI INTEGRATION LAYER (ADDED)
 
   if(!AI_ADAPTER) return;
 
+  // =============================
+  // AI MODE SYSTEM (ADDED)
+  // =============================
+
+  window.__AI_MODE__ = window.__AI_MODE__ || {
+    value: "full" // off | assist | full | experimental
+  };
+
+  function isAIEnabled(scope){
+    const mode = window.__AI_MODE__?.value;
+
+    if(mode === "off") return false;
+
+    if(mode === "assist"){
+      return scope === "scheduler" || scope === "checkins";
+    }
+
+    return true;
+  }
+
   window.aiQuery = async function({scope="general", input={}, mode="auto"}){
+
+    if(!isAIEnabled(scope)){
+      AI_CONTROL?.registerAIAction?.(scope,{type:"blocked_by_mode",input});
+      return {output:null,blocked:true};
+    }
 
     if(AI_CONTROL && !AI_CONTROL.aiEnabled(scope)){
       AI_CONTROL.registerAIAction?.(scope,{type:"blocked",input});
@@ -40,7 +65,6 @@ AI INTEGRATION LAYER (ADDED)
     return result;
   };
 
-  // ENHANCED SCHEDULER LOOP
   window.aiSchedule = async function(task){
 
     const context = {
@@ -52,7 +76,6 @@ AI INTEGRATION LAYER (ADDED)
     return window.aiQuery({scope:"scheduler",input:context,mode:"auto"});
   };
 
-  // OVERRIDE LEARNING SIGNAL
   window.aiOverride = function(taskId,change){
 
     window.__AI_MEMORY__?.add?.({
@@ -81,13 +104,47 @@ AI INTEGRATION LAYER (ADDED)
     return window.__AI_EXPLAIN__?.get?.(taskId);
   };
 
-  // CALENDAR BINDING
   window.bindCalendarTask = function(el,task){
     if(!el) return;
     el.addEventListener("click",()=>{
       window.renderAIExplainPanel?.(task.id);
     });
   };
+
+  // =============================
+  // AI MODE UI TOGGLE (ADDED)
+  // =============================
+
+  window.attachAIModeUI = function(){
+    if(document.getElementById("ai-mode-toggle")) return;
+
+    const el = document.createElement("div");
+    el.id = "ai-mode-toggle";
+    el.style.position = "fixed";
+    el.style.top = "10px";
+    el.style.right = "10px";
+    el.style.zIndex = "99999";
+
+    el.innerHTML = `
+      <select>
+        <option value="off">AI Off</option>
+        <option value="assist">Assist</option>
+        <option value="full" selected>Full</option>
+        <option value="experimental">Experimental</option>
+      </select>
+    `;
+
+    const select = el.querySelector("select");
+    select.value = window.__AI_MODE__.value;
+
+    select.onchange = (e)=>{
+      window.__AI_MODE__.value = e.target.value;
+    };
+
+    document.body.appendChild(el);
+  };
+
+  setTimeout(()=>window.attachAIModeUI?.(),500);
 
 })();
 
@@ -107,12 +164,16 @@ const AI_MEMORY = {
   load(){ this.entries = JSON.parse(localStorage.getItem("AI_MEMORY")||"[]"); }
 };
 AI_MEMORY.load();
-window.__AI_MEMORY__ = AI_MEMORY;
+window.__AI_MEMORY__=AI_MEMORY;
 
 // EMBEDDINGS
 const AI_EMBEDDINGS = {
   items: [],
   async add(text,metadata={}){
+    if(window.__AI_EMBED_CACHE__?.has(text)) return;
+    window.__AI_EMBED_CACHE__ = window.__AI_EMBED_CACHE__ || new Map();
+    window.__AI_EMBED_CACHE__.set(text,true);
+
     try{
       const res = await fetch("http://localhost:11434/api/embeddings",{
         method:"POST",
@@ -136,7 +197,7 @@ const AI_EMBEDDINGS = {
   load(){ this.items = JSON.parse(localStorage.getItem("AI_EMBEDDINGS")||"[]"); }
 };
 AI_EMBEDDINGS.load();
-window.__AI_EMBEDDINGS__ = AI_EMBEDDINGS;
+window.__AI_EMBEDDINGS__=AI_EMBEDDINGS;
 
 // PREFERENCES
 const AI_PREFERENCES = {
