@@ -42,7 +42,7 @@ function startEditTaskTime(id){editingTimeId=id;render();setTimeout(()=>{const e
 function cancelEditTaskTime(){editingTimeId=null;render();}
 function saveTaskTime(id,raw){const t=getTask(id);if(!t){editingTimeId=null;return;}const trimmed=String(raw||'').trim();if(!trimmed){t.ts='';editingTimeId=null;save();render();return;}const norm=normalizeTaskTime(trimmed);if(!norm){showToast('Use HH:MM (e.g. 14:30)','warn');startEditTaskTime(id);return;}t.ts=norm;editingTimeId=null;save();render();}
 function clearTaskTime(id){const t=getTask(id);if(!t)return;t.ts='';editingTimeId=null;save();render();}
-function toggleTask(id){const t=tasks.find(x=>x.id===id);if(!t)return;if(!t.status||t.status==='todo')t.status='inprogress';else if(t.status==='inprogress')t.status='done';else t.status='todo';t.done=(t.status==='done');t.doneDate=t.done?dateToYMD(new Date()):'';if(t.done&&focusTaskId===id){focusSubtaskId=null;clearFocus();}if(t.done){const el=document.querySelector('[data-task-id="'+id+'"]');const origin=el?{x:el.getBoundingClientRect().left+9,y:el.getBoundingClientRect().top+9}:null;confetti(origin);}save();if(t.done)showToast('✓ Done! '+t.text,'ok');renderNow();}
+function toggleTask(id){const t=tasks.find(x=>x.id===id);if(!t)return;if(!t.status||t.status==='todo')t.status='inprogress';else if(t.status==='inprogress')t.status='done';else t.status='todo';t.done=(t.status==='done');t.doneDate=t.done?dateToYMD(new Date()):'';if(t.done&&focusTaskId===id){focusSubtaskId=null;clearFocus();}if(t.done){const el=document.querySelector('[data-task-id="'+id+'"]').getBoundingClientRect?.();const origin=el?{x:el.left+9,y:el.top+9}:null;confetti(origin);}save();if(t.done)showToast('✓ Done! '+t.text,'ok');renderNow();}
 function deleteTask(id){if(focusTaskId===id){focusTaskId=null;focusSubtaskId=null;}tasks=tasks.filter(x=>x.id!==id);save();renderNow();}
 function openFocusPicker(){showFocusModal=true;focusSearch='';render();setTimeout(()=>{const el=document.getElementById('focus-search');if(el)el.focus();},0);}
 function closeFocusPicker(){showFocusModal=false;render();}
@@ -91,4 +91,141 @@ function buildProfileContext(){
     JSON.stringify(p.healthSelfRegulation || {}, null, 2),
     JSON.stringify(p.aiBehaviorRules || {}, null, 2)
   ].join('\n');
+}
+
+// -----------------------------
+// AI CONTEXT + EXECUTION LAYER
+// -----------------------------
+
+function buildAIContext(sessionInput = '', appState = {}) {
+  const profile = buildProfileContext();
+
+  return [
+    '=== SYSTEM CONTEXT ===',
+    'You are a task orchestration and cognitive support assistant.',
+    '',
+    profile,
+    '',
+    '=== APPLICATION STATE ===',
+    JSON.stringify({
+      focusTaskId,
+      tasks,
+      timerMode,
+      timerSecs,
+      crisisMode
+    }, null, 2),
+    '',
+    '=== USER INPUT ===',
+    sessionInput
+  ].join('\n');
+}
+
+function executeAIResponse(aiResponse) {
+  if (!aiResponse) return;
+
+  let parsed;
+  try {
+    parsed = typeof aiResponse === 'string' ? JSON.parse(aiResponse) : aiResponse;
+  } catch (e) {
+    showToast('AI response parse error', 'warn');
+    return;
+  }
+
+  const actions = parsed.actions || [];
+
+  actions.forEach(action => {
+    switch (action.type) {
+
+      case 'create_task': {
+        const t = action.task || {};
+        tasks.push({
+          id: Date.now() + Math.random(),
+          text: t.text || 'Untitled',
+          catId: t.catId || 'default',
+          done: false,
+          status: 'todo',
+          taskScope: 'day',
+          doneDate: '',
+          ts: '',
+          order: nextTaskOrder(),
+          createdAt: Date.now(),
+          repeat: null,
+          templateId: null,
+          generatedForDate: null,
+          pinned: false,
+          energyRequired: null,
+          anxiety: 0,
+          urgency: 0,
+          subtasks: t.subtasks || [],
+          estimatedMins: t.estimatedMins || null,
+          note: ''
+        });
+        break;
+      }
+
+      case 'delete_task': {
+        tasks = tasks.filter(x => x.id !== action.id);
+        break;
+      }
+
+      case 'update_task': {
+        const t = tasks.find(x => x.id === action.id);
+        if (!t) break;
+        Object.assign(t, action.updates || {});
+        break;
+      }
+
+      case 'breakdown_task': {
+        const parent = action.task;
+        if (!parent) break;
+
+        const baseId = Date.now();
+
+        (action.subtasks || []).forEach((st, i) => {
+          tasks.push({
+            id: baseId + i,
+            text: st.text,
+            catId: 'default',
+            done: false,
+            status: 'todo',
+            taskScope: 'day',
+            doneDate: '',
+            ts: '',
+            order: nextTaskOrder(),
+            createdAt: Date.now(),
+            repeat: null,
+            templateId: null,
+            generatedForDate: null,
+            pinned: false,
+            energyRequired: null,
+            anxiety: 0,
+            urgency: 0,
+            subtasks: [],
+            estimatedMins: st.mins || null,
+            note: ''
+          });
+        });
+        break;
+      }
+
+      case 'schedule_task': {
+        const t = tasks.find(x => x.id === action.id);
+        if (!t) break;
+
+        if (action.allDay) {
+          t.taskScope = 'allDay';
+          t.ts = '';
+        } else if (action.ts) {
+          t.ts = action.ts;
+        }
+        break;
+      }
+
+      default:
+        break;
+    }
+  });
+
+  save();
+  renderNow();
 }
