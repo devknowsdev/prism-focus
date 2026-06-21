@@ -51,3 +51,44 @@ function setFocus(id, subtaskId){const t=getTask(id);if(!t||t.done){showToast('P
 function startTaskStopwatch(id){const t=getTask(id);if(!t||t.done){showToast('Pick an active task','warn');return;}if(timerRunning && focusTaskId===id){stopAndSaveTimer(false);return;}if(!timerRunning && focusTaskId===id){timerMode='stopwatch';timerSessionType='work';timerSecs=0;save();startTimerInternal();render();return;}if(timerRunning)stopTimerInternal();focusTaskId=id;focusSubtaskId=null;showFocusModal=false;save();render();}
 function clearFocus(){focusTaskId=null;focusSubtaskId=null;stopTimerInternal();showFocusModal=false;save();render();}
 function doneFocus(){if(focusTaskId==null)return;const t=getTask(focusTaskId);if(!t)return;const doneText=t.text;t.status='done';t.done=true;focusSubtaskId=null;clearFocus();showToast('✓ Done! '+doneText,'ok');}
+
+// -----------------------------
+// USER PROFILE LAYER (UPL)
+// -----------------------------
+
+const DEFAULT_PROFILE = {
+  version: "0.1",
+  cognitiveProfile: {},
+  workflowPreferences: {},
+  healthSelfRegulation: {},
+  aiBehaviorRules: {},
+  imports: []
+};
+
+function loadUserProfile(){
+  try {
+    const raw = localStorage.getItem('ai_profile');
+    if(!raw) return DEFAULT_PROFILE;
+    return { ...DEFAULT_PROFILE, ...JSON.parse(raw) };
+  } catch(e){
+    return DEFAULT_PROFILE;
+  }
+}
+
+function saveUserProfile(profile){
+  try {
+    localStorage.setItem('ai_profile', JSON.stringify(profile));
+  } catch(e){}
+}
+
+function buildProfileContext(){
+  const p = loadUserProfile();
+
+  return [
+    '[USER PROFILE LAYER]',
+    JSON.stringify(p.cognitiveProfile || {}, null, 2),
+    JSON.stringify(p.workflowPreferences || {}, null, 2),
+    JSON.stringify(p.healthSelfRegulation || {}, null, 2),
+    JSON.stringify(p.aiBehaviorRules || {}, null, 2)
+  ].join('\n');
+}
