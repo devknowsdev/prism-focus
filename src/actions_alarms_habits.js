@@ -9,11 +9,11 @@ STATE_WRITES: a, alarms, anchor, anchorOrder, anchorSel, anchorVal, catSel, d, e
 PUBLIC_API: addAlarm, addHabit, adjustHitMins, closeHitInput, deleteAlarm, openHitInput, removeHabitHit, saveHabitHit, saveHabitHitMins, saveHabitHitTime, setHabitAnchor, setHitInputMins
 DEPENDENCIES: see dependency graph
 INVARIANTS: render pure; actions mutate; helpers transform
-LAST_STABILIZED: 2026-06-21
+LAST_STABILIZED: 2026-06-22
 */
 
 // Alarms and habit hit actions.
-// Depends on: core.js (btnStyle), helpers.js (getCat, fmtDur), state.js, storage.js (save),
+// Depends on: core.js (btnStyle), helpers.js (getCat, fmtDur, _blurForRender), state.js, storage.js (save),
 //             ui.js (showToast), render.js (render).
 // Called from: render_habits.js, render_focusboard_cards.js (time targets),
 //              render_daylog.js (checkAlarms via runtime.js).
@@ -25,6 +25,9 @@ function addAlarm(){
   const[hh,mm]=t.split(':');
   const pad=String(parseInt(hh)).padStart(2,'0')+':'+String(parseInt(mm)).padStart(2,'0');
   alarms.push({id:Date.now(),time:pad,label:l,on:true,fired:false,taskId});
+  // Fix: render-clobber bug — #alarm-time-in lives in a data-no-clobber
+  // wrapper (_renderTimeTargets) and was still focused when render() ran.
+  _blurForRender('alarm-time-in');
   save();showToast('Target set for '+pad,'ok');render();
 }
 function toggleAlarm(id){const a=alarms.find(x=>x.id===id);if(!a)return;a.on=!a.on;a.fired=false;save();render();}
@@ -39,6 +42,9 @@ function addHabit(){
   const anchorOrder=sameAnchor.length?Math.max(...sameAnchor.map(h=>h.anchorOrder||0))+1:0;
   habits.push({id:Date.now(),name:text,catId:catSel?catSel.value:'',hits:[],anchor:anchorVal,anchorOrder});
   inp.value='';
+  // Fix: render-clobber bug — #habit-in lives in a data-no-clobber wrapper
+  // (_renderHabitAddForm) and was still focused when render() ran.
+  _blurForRender('habit-in');
   save();render();
 }
 function setHabitAnchor(habitId,anchorId){
@@ -117,4 +123,3 @@ function saveHabitHitMins(habitId,hitId,val){
   hit.minutes=Math.max(0,parseInt(val)||0);
   save();render();
 }
-
