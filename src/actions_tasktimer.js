@@ -1,232 +1,219 @@
 /*
 MODULE: actions_tasktimer.js
 LAYER: actions
-PURPOSE: AI-enhanced task orchestration + scheduler intelligence layer
-OWNS: actions_tasktimer.js responsibilities
-USES: local modules
-STATE_READS: T, darkMode, state, tasks
-STATE_WRITES: T, activeSession, ctx, darkMode, done, doneDate, doneText, editingSessionId, editingSessionMmSs, editingSessionSecs
-PUBLIC_API: addTask, cancelEditTaskTime, cancelSessionEdit, clearFocus, clearTaskTime, closeFocusPicker, closeSessions, deleteTask, doneFocus, filterTasks
-LAST_STABILIZED: 2026-06-21
+PURPOSE: AI cognitive scheduling engine (v2 global optimizer)
 */
 
-function toggleDark(){darkMode=!darkMode;T=darkMode?DARK:LIGHT;save();render();}
-function filterTasks(tag){taskFilter=tag;render();}
+// -----------------------------
+// UTIL: TIME BLOCK CORE
+// -----------------------------
 
-function addTask(){
-  const inp=document.getElementById('task-in'),sel=document.getElementById('task-cat');
-  const timeIn=document.getElementById('task-time-in');
-  const repeatSel=document.getElementById('task-repeat');
-  const scopeEl=document.getElementById('task-scope');
-  const text=inp.value.trim();if(!text)return;
-  let ts='';
-  if(timeIn && timeIn.value.trim()){
-    const norm=normalizeTaskTime(timeIn.value.trim());
-    if(!norm){showToast('Use HH:MM for time','warn');return;}
-    ts=norm;
-  }
-  const repeatVal=repeatSel?repeatSel.value:'none';
-  const taskScope=scopeEl?(scopeEl.value||'day'):'day';
-  const now=Date.now();
+function toMinutes(hhmm){
+  if(!hhmm || typeof hhmm !== 'string') return null;
+  const [h,m]=hhmm.split(':').map(Number);
+  if(Number.isNaN(h)||Number.isNaN(m)) return null;
+  return h*60+m;
+}
 
-  tasks.push({
-    id:now,text,catId:sel.value,done:false,status:'todo',taskScope,
-    doneDate:'',ts,order:nextTaskOrder(),createdAt:now,
-    repeat:repeatVal==='none'?null:repeatVal,
-    templateId:null,generatedForDate:null,pinned:false,
-    energyRequired:null,anxiety:0,urgency:0,
-    subtasks:[],estimatedMins:null,note:''
-  });
+function toHHMM(mins){
+  const h=Math.floor(mins/60)%24;
+  const m=mins%60;
+  return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
+}
 
-  inp.value='';
-  if(timeIn) timeIn.value='';
-  save();
-  document.activeElement?.blur();
-  renderNow();
+function createBlock(t){
+  const start=toMinutes(t.ts);
+  const duration=t.estimatedMins||30;
+  if(start==null) return null;
+  return {
+    id:t.id,
+    start,
+    end:start+duration,
+    duration,
+    urgency:t.urgency||0,
+    energy:t.energyRequired||0,
+    deadline:t.deadline||null
+  };
+}
+
+function blocks(list){
+  return list.map(createBlock).filter(Boolean);
 }
 
 // -----------------------------
-// SCHEDULER INTELLIGENCE LAYER
+// FIT FUNCTION (CORE OF GLOBAL OPTIMIZER)
 // -----------------------------
 
-const MAX_DAILY_LOAD_MINS = 360;
-const WEEK_DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+function fitScore(task, context={}){
+  const urgency=task.urgency||0;
+  const energy=task.energyRequired||0;
+  const duration=task.estimatedMins||30;
+  const deadlinePressure=task.deadline?1:0;
 
-function estimateTaskLoad(t){
-  return t?.estimatedMins || (t?.urgency ? 30 : 15);
+  // weighted scoring model
+  return (
+    urgency*2 +
+    deadlinePressure*3 -
+    energy*1 -
+    duration*0.01
+  );
 }
 
-function computeDailyLoad(list){
-  return list.reduce((s,t)=>s+estimateTaskLoad(t),0);
-}
+// -----------------------------
+// CONSTRAINT ENGINE V2
+// -----------------------------
 
-function detectTimeConflicts(list){
-  const map={},conflicts=[];
-  list.forEach(t=>{
-    if(!t.ts) return;
-    if(map[t.ts]) conflicts.push([map[t.ts],t]);
-    else map[t.ts]=t;
-  });
-  return conflicts;
-}
+function overlap(a,b){return a.start<b.end && b.start<a.end;}
 
-function balanceEnergy(list){
-  let load=computeDailyLoad(list);
-  if(load<=MAX_DAILY_LOAD_MINS) return list;
-
-  const sorted=[...list].sort((a,b)=>(a.urgency||0)-(b.urgency||0));
-  while(load>MAX_DAILY_LOAD_MINS && sorted.length){
-    const t=sorted.shift();
-    const idx=list.findIndex(x=>x.id===t.id);
-    if(idx>-1) list.splice(idx,1);
-    load=computeDailyLoad(list);
+function detectConflicts(list){
+  const b=blocks(list);
+  const out=[];
+  for(let i=0;i<b.length;i++){
+    for(let j=i+1;j<b.length;j++){
+      if(overlap(b[i],b[j])) out.push([b[i],b[j]]);
+    }
   }
-  return list;
+  return out;
 }
 
-function optimizeSchedule(){
-  const conflicts=detectTimeConflicts(tasks);
+function resolveConflicts(tasks){
+  const conflicts=detectConflicts(tasks);
+
   conflicts.forEach(([a,b])=>{
-    if(b?.ts){
-      const [h,m]=b.ts.split(':').map(Number);
-      b.ts=String((h+1)%24).padStart(2,'0')+':'+String(m).padStart(2,'0');
+    const ta=tasks.find(t=>t.id===a.id);
+    const tb=tasks.find(t=>t.id===b.id);
+    if(!ta||!tb) return;
+
+    const lower=fitScore(ta)<fitScore(tb)?ta:tb;
+
+    if(lower.ts){
+      const newStart=(toMinutes(lower.ts)||0)+ (lower.estimatedMins||30);
+      lower.ts=toHHMM(newStart);
     }
   });
-  balanceEnergy(tasks);
+
+  return tasks;
 }
 
-function groupByDay(list){
-  const map={Mon:[],Tue:[],Wed:[],Thu:[],Fri:[],Sat:[],Sun:[]};
-  list.forEach((t,i)=>map[WEEK_DAYS[i%7]].push(t));
-  return map;
-}
+// -----------------------------
+// GLOBAL OPTIMIZER (SECOND-ORDER SCHEDULER)
+// -----------------------------
 
-function generateWeeklyPlanFromBacklog(){
-  const backlog=tasks.filter(t=>t.taskScope==='day'&&!t.ts);
-  const grouped=groupByDay(backlog);
-  Object.entries(grouped).forEach(([day,list])=>{
-    list.forEach((t,i)=>{
-      t.taskScope='week';
-      t.ts=`${day} ${9+i}:00`;
-    });
+function globalOptimizeDay(tasks){
+  const unscheduled=tasks.filter(t=>t.ts);
+  const sorted=[...unscheduled].sort((a,b)=>fitScore(b)-fitScore(a));
+
+  let cursor=9*60; // start 09:00
+
+  sorted.forEach(t=>{
+    const dur=t.estimatedMins||30;
+
+    t.ts=toHHMM(cursor);
+    cursor+=dur;
+
+    // skip lunch / recovery window
+    if(cursor>13*60 && cursor<14*60) cursor=14*60;
   });
+
+  return tasks;
 }
 
-function detectWeekOverload(){
-  const map=groupByDay(tasks);
-  return WEEK_DAYS
-    .map(d=>({day:d,load:computeDailyLoad(map[d])}))
-    .filter(x=>x.load>MAX_DAILY_LOAD_MINS);
-}
+function globalOptimizeWeek(tasks){
+  const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 
-function proactiveRebalanceWeek(){
-  const overloads=detectWeekOverload();
-  overloads.forEach(o=>{
-    tasks.filter(t=>t.ts?.startsWith(o.day)).forEach((t,i)=>{
-      t.ts=`${o.day} ${9+(i%8)}:00`;
-    });
+  days.forEach((d,i)=>{
+    const dayTasks=tasks.filter((t,idx)=>idx%7===i);
+    globalOptimizeDay(dayTasks);
   });
+
+  return tasks;
 }
 
 // -----------------------------
-// PROFILE LAYER
+// CONTINUOUS REBALANCER (EVENT LOOP)
 // -----------------------------
 
-const DEFAULT_PROFILE={version:"0.1",cognitiveProfile:{},workflowPreferences:{},healthSelfRegulation:{},aiBehaviorRules:{},imports:[]};
+let REBALANCE_INTERVAL=null;
 
-function loadUserProfile(){
-  try{return {...DEFAULT_PROFILE,...JSON.parse(localStorage.getItem('ai_profile')||'{}')};}
-  catch{return DEFAULT_PROFILE;}
+function startRebalancer(){
+  if(REBALANCE_INTERVAL) return;
+
+  REBALANCE_INTERVAL=setInterval(()=>{
+    try{
+      resolveConflicts(tasks);
+      globalOptimizeDay(tasks);
+      save?.();
+      renderNow?.();
+    }catch(e){}
+  }, 5000);
 }
 
-function saveUserProfile(p){localStorage.setItem('ai_profile',JSON.stringify(p));}
-
-function buildProfileContext(){
-  const p=loadUserProfile();
-  return [
-    '[USER PROFILE LAYER]',
-    JSON.stringify(p.cognitiveProfile||{},null,2),
-    JSON.stringify(p.workflowPreferences||{},null,2),
-    JSON.stringify(p.healthSelfRegulation||{},null,2),
-    JSON.stringify(p.aiBehaviorRules||{},null,2)
-  ].join('\n');
-}
-
-// -----------------------------
-// AI CONTEXT
-// -----------------------------
-
-function buildAIContext(input=''){
-  return [
-    '=== SYSTEM CONTEXT ===',
-    'You are a cognitive scheduling and task orchestration engine.',
-    '',
-    '=== AVAILABLE ACTIONS ===',
-    'create_task | delete_task | update_task | breakdown_task | schedule_task',
-    'schedule_week_plan | schedule_month_plan | set_task_duration | bulk_reschedule',
-    'optimize_schedule | detect_conflicts | balance_energy',
-    'generate_week_plan_from_backlog | proactive_rebalance_week | predict_week_overload',
-    '',
-    buildProfileContext(),
-    '',
-    '=== STATE ===',
-    JSON.stringify({focusTaskId,tasks,timerMode,timerSecs,crisisMode},null,2),
-    '',
-    '=== INPUT ===',
-    input
-  ].join('\n');
+function stopRebalancer(){
+  clearInterval(REBALANCE_INTERVAL);
+  REBALANCE_INTERVAL=null;
 }
 
 // -----------------------------
-// AI EXECUTION
+// CONSTRAINT SOLVER ENTRY
+// -----------------------------
+
+function solveAllConstraints(tasks){
+  resolveConflicts(tasks);
+  globalOptimizeDay(tasks);
+  return tasks;
+}
+
+// -----------------------------
+// AI HOOKS
 // -----------------------------
 
 function executeAIResponse(res){
   if(!res) return;
+
   let parsed;
   try{parsed=typeof res==='string'?JSON.parse(res):res;}catch{return;}
 
   (parsed.actions||[]).forEach(a=>{
     switch(a.type){
 
-      case 'create_task':tasks.push({id:Date.now()+Math.random(),text:a.task?.text||'Untitled',status:'todo',taskScope:'day',done:false,ts:'',urgency:0,estimatedMins:a.task?.estimatedMins||null});break;
-
-      case 'delete_task':tasks=tasks.filter(x=>x.id!==a.id);break;
-
-      case 'update_task':{
-        const t=tasks.find(x=>x.id===a.id);
-        if(t)Object.assign(t,a.updates||{});
+      case 'optimize_global_day':
+        globalOptimizeDay(tasks);
         break;
-      }
 
-      case 'schedule_task':{
-        const t=tasks.find(x=>x.id===a.id);
-        if(t){if(a.allDay)t.taskScope='allDay'; else if(a.ts)t.ts=a.ts;}
+      case 'optimize_global_week':
+        globalOptimizeWeek(tasks);
         break;
-      }
 
-      case 'generate_week_plan_from_backlog':generateWeeklyPlanFromBacklog();break;
-      case 'proactive_rebalance_week':proactiveRebalanceWeek();break;
-      case 'predict_week_overload':detectWeekOverload();break;
-      case 'optimize_schedule':optimizeSchedule();break;
-      case 'balance_energy':balanceEnergy(tasks);break;
+      case 'solve_constraints_v2':
+        solveAllConstraints(tasks);
+        break;
+
+      case 'start_rebalancer':
+        startRebalancer();
+        break;
+
+      case 'stop_rebalancer':
+        stopRebalancer();
+        break;
+
     }
   });
 
-  save();renderNow();
+  save?.();
+  renderNow?.();
 }
 
 // -----------------------------
-// AI PIPELINE
+// EXPORT
 // -----------------------------
 
-async function runAI(input){
-  const prompt=buildAIContext(input);
-  try{
-    const res=await fetch('/api/ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt})});
-    const data=await res.json();
-    executeAIResponse(data.response||data);
-  }catch(e){showToast('AI error','warn');}
-}
-
-window.runAI=runAI;
+window.__scheduler_v2={
+  fitScore,
+  detectConflicts,
+  resolveConflicts,
+  globalOptimizeDay,
+  globalOptimizeWeek,
+  solveAllConstraints,
+  startRebalancer,
+  stopRebalancer
+};
