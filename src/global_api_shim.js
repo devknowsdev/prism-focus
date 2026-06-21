@@ -145,6 +145,17 @@ globalThis so Node VM harnesses can access them.
   // Expose any extra names discovered in templates/tests that are reasonably safe noop aliases
   ['openFocusPicker','closeFocusPicker','openSessions','closeSessions','saveSessionEdit','cancelSessionEdit','deleteSession'].forEach(n=>{ if(typeof globalThis[n]==='undefined') globalThis[n]=root[n]; });
 
+  // Provide safe no-op implementations for many inline handlers that may
+  // be referenced by templates but are not required for headless tests.
+  const noopNames = [
+    'nudgeMetroBpm','setMetroBpm','stopMetro','startMetro','toggleMetro','tapTempo','setMetroBeats','setMetroSubdivision','toggleTuner','setKbOctave','setKbWaveform','setKbVolume',
+    'playRecording','toggleAudioRecording','dumpAiParse','dumpAiConfirm','dumpAiEdit','settingsTestOllama','settingsTestAnthropic','settingsToggleShowKey',
+    'toggleWidgetCollapse','hideWidget','restoreWidget','plannerNudgeZoom','plannerSetZoom','plannerSetDayLayout','plannerSelectDate','tlPillClick','tlClearTaskTime','tlCommitNewTask','tlCancelNewTask','plannerOpenTimeline','plannerOpenDump','plannerPromoteDump'
+  ];
+  noopNames.forEach(name=>{
+    try{ if(typeof root[name]==='undefined') root[name]=function(){ try{ if(typeof render==='function') render(); }catch(e){} }; if(typeof globalThis!== 'undefined' && typeof globalThis[name]==='undefined') globalThis[name]=root[name]; }catch(e){}
+  });
+
   // Transition helpers
   ensure('transitionSaveAndContinue', function(){ try{ const text = (typeof transitionReflect!=='undefined'&&transitionReflect)?transitionReflect:(document.getElementById?document.getElementById('transition-reflect-input')?.value||'':''); journalEntries = journalEntries||[]; journalEntries.unshift({id:Date.now(),type:'reflect',text,catId:'',createdAt:Date.now()}); if(typeof stopAndSaveTimer==='function') stopAndSaveTimer(true); showTransitionPrompt=false; transitionReflect=''; save&&save(); render&&render(); }catch(e){} });
   ensure('transitionSkip', function(){ try{ if(typeof stopAndSaveTimer==='function') stopAndSaveTimer(true); showTransitionPrompt=false; transitionReflect=''; save&&save(); render&&render(); }catch(e){} });
