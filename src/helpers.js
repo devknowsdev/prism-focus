@@ -6,16 +6,43 @@ OWNS: helpers.js responsibilities
 USES: local modules
 STATE_READS: T, habits, tasks
 STATE_WRITES: COLORS, DURATION, GRAVITY, _avoidanceCache, _taskHitsCache, alpha, already, alreadyMigrated, anchor, anchorOrder
-PUBLIC_API: _buildAvoidanceCache, addJournalEntry, avoidanceScore, compareTasks, confetti, dateToYMD, deleteJournalEntry, ensureFocusValid, esc, fmtDur, frame, getAllHitsForHabit
+PUBLIC_API: _buildAvoidanceCache, _blurForRender, addJournalEntry, avoidanceScore, compareTasks, confetti, dateToYMD, deleteJournalEntry, ensureFocusValid, esc, fmtDur, frame, getAllHitsForHabit
 DEPENDENCIES: see dependency graph
 INVARIANTS: render pure; actions mutate; helpers transform
-LAST_STABILIZED: 2026-06-21
+LAST_STABILIZED: 2026-06-22
 */
 
 
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function getCat(id){return categories.find(c=>c.id===id);}
 function getTask(id){return tasks.find(t=>t.id===id);}
+
+// ── Render-clobber escape hatch ──────────────────────────────────────────────
+// _doRender() (render.js) skips a full rebuild whenever document.activeElement
+// sits inside a [data-no-clobber="true"] container — that's correct, it's what
+// stops a render firing mid-keystroke from yanking focus out of whatever the
+// person is typing into.
+//
+// The bug this fixes: several "Enter to add" COMMIT handlers (addTask,
+// addJournalEntry, plannerAddDump, addHabit, addAlarm, addSubtask,
+// wizAddCapture) live inside such a container, clear the input, then call
+// save()/render() while that now-empty input is STILL focused. That trips the
+// no-clobber check meant for in-progress typing — even though the commit is
+// actually finished — so the render silently downgrades to
+// _partialTimerUpdate() (clock/timer text only) and the new item never paints
+// until something else forces a full render (refresh, tab-away, an unrelated
+// timer tick). The data is saved correctly the whole time; only the paint is
+// skipped, which is what made this look like a "needs refresh" bug.
+//
+// Fix: blur the input immediately before save()/render() in any such commit
+// handler, so the no-clobber check no longer matches and the full rebuild
+// actually runs. Existing setTimeout(...).focus() calls that re-focus the
+// input afterward (for fast repeated entry) are unaffected — they run after
+// the full render completes.
+function _blurForRender(inputId){
+  const el=document.getElementById(inputId);
+  if(el&&typeof el.blur==='function') el.blur();
+}
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
 // Moved here from actions_planner.js (HANDOFF_task_scope_and_dump.md) so
@@ -282,6 +309,7 @@ function addJournalEntry(){
   journalEntries.unshift({id:Date.now(),type:journalNewType,text,catId,createdAt:Date.now()});
   ta.value='';
   journalNewType='dump';
+  _blurForRender('journal-capture-text');
   save();render();
   // Re-focus capture area after render
   setTimeout(()=>{const el=document.getElementById('journal-capture-text');if(el)el.focus();},0);
