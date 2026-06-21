@@ -1,6 +1,8 @@
 # Running in the browser
 
-Most of ADHDashboard works when you open `index.html` directly (`file://`), including tasks, the focus timer, and planner.
+**Hosted copy:** [devknowsdev.github.io/ADHDashboard](https://devknowsdev.github.io/ADHDashboard/) (GitHub Pages, HTTPS).
+
+Most of ADHDashboard works when you open `index.html` directly (`file://`), including tasks, the focus timer, and planner. Icons and fonts are bundled under `vendor/` — no CDN required.
 
 **Voice notes** use the MediaRecorder API and IndexedDB. Many browsers block or limit these on `file://` URLs.
 

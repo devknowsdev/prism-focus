@@ -2,6 +2,8 @@
 
 Local-first productivity dashboard designed for ADHD and autism-friendly workflows. No build step, no account, no server required for day-to-day use — your data stays in the browser.
 
+**Live demo:** [devknowsdev.github.io/ADHDashboard](https://devknowsdev.github.io/ADHDashboard/)
+
 ## Features
 
 - **Focus Board** — timer (countdown/stopwatch), focus task, board cards, crisis/focus mode
@@ -13,10 +15,11 @@ Local-first productivity dashboard designed for ADHD and autism-friendly workflo
 - **Day Log** — time summaries, off-task log, backup/restore
 - **Habits** — daily task tracking with hit grid
 - **Music Tools** — metronome, tuner, task music metadata
+- **AI (optional)** — Ollama (local) or Claude for NL task parse, wizard prompts, breakdowns, and weekly nudges; degrades gracefully when off
 
 ## Quick start
 
-1. Clone or download this repo.
+1. Clone or download this repo, **or** use the [live demo](https://devknowsdev.github.io/ADHDashboard/).
 2. Open `index.html` in a modern browser, **or** run a local server (recommended for voice notes):
 
    ```bash
@@ -27,6 +30,13 @@ Local-first productivity dashboard designed for ADHD and autism-friendly workflo
 3. Use the app. Data persists automatically in `localStorage`.
 
 See [web/README.md](web/README.md) for browser vs. local-server notes.
+
+### Optional AI
+
+1. Open **Settings** (gear icon in the header) → **AI** tab
+2. Enable AI features
+3. **Local/private:** install [Ollama](https://ollama.com), run `ollama pull llama3.2`, enable Ollama, test connection
+4. **Cloud:** paste a Claude API key (stored separately; never included in JSON backups)
 
 ## Tests
 
@@ -57,8 +67,10 @@ Audio recordings are device-only and are not included in JSON backups.
 
 ```
 index.html          Entry point; loads scripts in fixed order
+vendor/             Vendored Tabler icons + fonts (offline / Pages)
 src/
   state.js          All mutable global state
+  ai.js             Optional AI layer (Ollama / Claude)
   storage.js        localStorage load/save
   render*.js        Widget HTML renderers
   actions*.js       State mutations
@@ -66,17 +78,19 @@ src/
   runtime.js        Global listeners and intervals
   init.js           Boot: load → migrate → render
   test_workflows.js Node test harness (331 tests)
+  state/            Draft ES-module split (not loaded; see state_migration_findings.md)
   ARCHITECTURE.md   Developer map — read before changing code
 tools/
   validate_architecture.py
 generated/          Auto-generated dependency graphs
+.github/workflows/  CI tests + GitHub Pages deploy
 ```
 
 ## Tech stack
 
 - Vanilla HTML/CSS/JavaScript (classic `<script>` tags, shared global scope)
 - `localStorage` for persistence; IndexedDB for audio blobs
-- [Tabler Icons](https://tabler.io/icons) and [Google Fonts](https://fonts.google.com) via CDN (requires network on first load)
+- [Tabler Icons](https://tabler.io/icons) and [Google Fonts](https://fonts.google.com) vendored under `vendor/` (no CDN at runtime)
 
 ## License
 
