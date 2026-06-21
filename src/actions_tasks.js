@@ -9,13 +9,13 @@ STATE_WRITES: _ST_QL_PILLS, active, added, addingSubtaskForTaskId, already, back
 PUBLIC_API: addSubtask, addToFocusBoard, cancelEditEstimate, cancelEditOffTask, cancelEditSubtaskEstimate, closeAddSubtask, closeNoteEdit, closeSubtaskQuickLog, commitSubtaskQuickLog, deleteHabit, deleteOffTask, deleteSubtask
 DEPENDENCIES: see dependency graph
 INVARIANTS: render pure; actions mutate; helpers transform
-LAST_STABILIZED: 2026-06-21
+LAST_STABILIZED: 2026-06-22
 */
 
 // Subtask management, task editing (cat, pin, repeat, estimate, notes, music meta),
 // drag-to-reorder (tasks + subtasks), focus board mode, and off-task log.
 // Depends on: core.js (btnStyle, inputStyle), helpers.js (esc, getTask, getSubtask,
-//             fmtDur, parseTimeInput, nextTaskOrder, getTotalForSubtask),
+//             fmtDur, parseTimeInput, nextTaskOrder, getTotalForSubtask, _blurForRender),
 //             state.js, storage.js (save), ui.js (showToast), render.js (render, renderNow),
 //             actions_tasktimer.js (openQuickLog), actions_alarms_habits.js (deleteHabit).
 // ---- Subtask management ----
@@ -60,6 +60,12 @@ function addTask(){
   };
   tasks.push(t);
   inp.value=''; if(timeEl) timeEl.value=''; if(repeatEl) repeatEl.value='none'; if(scopeEl) scopeEl.value='day';
+  // Fix: addTask used to call save()/render() while #task-in still had focus.
+  // #task-in lives inside a data-no-clobber="true" wrapper (the add-task row),
+  // so render() silently downgraded to a clock-only partial update and the new
+  // task never painted until something else forced a full render (e.g. a page
+  // refresh). Blurring first makes _doRender() actually rebuild the list.
+  _blurForRender('task-in');
   save(); render();
 }
 if(typeof window !== 'undefined') { window.addTask = addTask; }
@@ -98,6 +104,9 @@ function addSubtask(taskId){
   const order=t.subtasks.length;
   t.subtasks.push({id:Date.now(),text,done:false,order,practiceCount:0});
   inp.value='';
+  // Fix: same render-clobber bug as addTask() — the add-subtask input sits in
+  // a data-no-clobber wrapper and was still focused when renderNow() ran.
+  _blurForRender('subtask-add-input-'+taskId);
   save();renderNow();
   setTimeout(()=>{const el=document.getElementById('subtask-add-input-'+taskId);if(el)el.focus();},0);
 }
