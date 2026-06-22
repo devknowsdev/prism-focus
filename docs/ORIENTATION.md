@@ -1,3 +1,6 @@
+# ---
+Last-Updated: 2026-06-22
+
 # ADHDashboard — Orientation
 
 Purpose: short developer map to locate key files and runtime flows.

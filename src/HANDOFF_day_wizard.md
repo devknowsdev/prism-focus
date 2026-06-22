@@ -1,3 +1,10 @@
+<!-- Archived: moved to docs/archived/HANDOFF_day_wizard.md -->
+
+This file has been archived. The archived copy is available at:
+
+[docs/archived/HANDOFF_day_wizard.md](docs/archived/HANDOFF_day_wizard.md)
+
+If you need to propose edits, update the archived file and open a patch for review.
 # ADHDashboard — Handoff: Day Wizard
 
 **For the implementing Claude. Read HANDOFF_task_scope_and_dump.md first —

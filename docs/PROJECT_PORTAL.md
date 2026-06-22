@@ -1,3 +1,6 @@
+---
+Last-Updated: 2026-06-22
+
 # ADHDashboard — Project Portal
 
 Short orientation for engineers and quick navigation links.
@@ -14,6 +17,9 @@ Key orientation docs
 - [docs/AI_API.md](ADHDashboard-git/docs/AI_API.md)
 - [generated/PROJECT_INDEX.md](ADHDashboard-git/generated/PROJECT_INDEX.md)
 - [generated/AI_CONTEXT.md](ADHDashboard-git/generated/AI_CONTEXT.md)
+
+Workspace-level portal
+- Canonical workspace portal: [AI-Forge/docs/PROJECT_PORTAL.md](AI-Forge/docs/PROJECT_PORTAL.md)
 
 Where to look for common changes (recipes)
 - **Change task UI**: `src/render_tasks.js`, `src/actions_tasks.js` — run `node src/test_workflows.js` after edits.

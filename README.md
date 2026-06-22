@@ -1,3 +1,6 @@
+# ---
+Last-Updated: 2026-06-22
+
 # ADHDashboard
 
 Local-first productivity dashboard designed for ADHD and autism-friendly workflows. No build step, no account, no server required for day-to-day use — your data stays in the browser.

@@ -1,3 +1,5 @@
+<!-- AUTO-GENERATED — DO NOT EDIT. Generated from source modules. -->
+
 # ADHDashboard Project Index
 
 Generated from source modules.
@@ -11,7 +13,6 @@ Generated from source modules.
 - src/constants.js
 - src/render_wizard.js
 - src/render_focusboard_cards.js
-- src/\.js
 - src/ui.js
 - src/render.js
 - src/render_music.js
