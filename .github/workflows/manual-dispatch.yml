@@ -5,17 +5,24 @@ on:
 
 jobs:
   run-tests:
-    uses: devknowsdev/workspace-meta/.github/workflows/reusable-run-tests.yml@main
-    with:
-      node_version: '22'
-      test_commands: 'node src/test_workflows.js'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run tests
+        run: node src/test_workflows.js
 
   deploy-pages:
     needs: run-tests
-    uses: devknowsdev/workspace-meta/.github/workflows/reusable-deploy-adhd.yml@main
-    with:
-      build_dir: '.'
-    secrets:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      CLOUDFLARE_PROJECT_NAME: ${{ secrets.CLOUDFLARE_PROJECT_NAME }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: ${{ secrets.CLOUDFLARE_PROJECT_NAME }}
+          directory: '.'
