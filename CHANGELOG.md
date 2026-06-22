@@ -4,7 +4,7 @@
 
 - **AI integration layer** (`src/ai.js`): Ollama + Claude providers, six feature hooks, graceful degradation, separate API key storage.
 - **Offline assets:** Tabler Icons and DM Mono / Syne fonts vendored under `vendor/`; no runtime CDN dependency.
-- **GitHub Pages:** deploy workflow on push to `main`; live at [devknowsdev.github.io/ADHDashboard](https://devknowsdev.github.io/ADHDashboard/).
+ - **GitHub Pages:** deploy workflow on push to `main`; live at [devknowsdev.github.io/prism-focus](https://devknowsdev.github.io/prism-focus/). (Renamed from ADHDashboard)
 - **331 workflow tests** (WF31 AI block included); architecture validation passes.
 
 ## 2026-06-21

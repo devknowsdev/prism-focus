@@ -1,6 +1,6 @@
 # Running in the browser
 
-**Hosted copy:** [devknowsdev.github.io/ADHDashboard](https://devknowsdev.github.io/ADHDashboard/) (GitHub Pages, HTTPS).
+**Hosted copy:** [devknowsdev.github.io/prism-focus](https://devknowsdev.github.io/prism-focus/) (GitHub Pages, HTTPS). Previously hosted as ADHDashboard.
 
 Most of ADHDashboard works when you open `index.html` directly (`file://`), including tasks, the focus timer, and planner. Icons and fonts are bundled under `vendor/` — no CDN required.
 

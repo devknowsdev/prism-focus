@@ -5,7 +5,7 @@ Last-Updated: 2026-06-22
 
 Local-first productivity dashboard designed for ADHD and autism-friendly workflows. No build step, no account, no server required for day-to-day use — your data stays in the browser.
 
-**Live demo:** [devknowsdev.github.io/ADHDashboard](https://devknowsdev.github.io/ADHDashboard/)
+**Live demo:** [devknowsdev.github.io/prism-focus](https://devknowsdev.github.io/prism-focus/) (formerly ADHDashboard)
 
 ## Features
 
@@ -22,7 +22,7 @@ Local-first productivity dashboard designed for ADHD and autism-friendly workflo
 
 ## Quick start
 
-1. Clone or download this repo, **or** use the [live demo](https://devknowsdev.github.io/ADHDashboard/).
+1. Clone or download this repo, **or** use the [live demo](https://devknowsdev.github.io/prism-focus/).
 2. Open `index.html` in a modern browser, **or** run a local server (recommended for voice notes):
 
    ```bash
