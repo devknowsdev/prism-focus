@@ -197,12 +197,13 @@ function renderHabitsWidget(todayStr, now){
   const totalCount=habits.length;
   const pct=totalCount?Math.round(doneCount/totalCount*100):0;
   const summaryBar=`
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;padding:8px 10px;background:${T.surface2};border:1.5px solid ${T.border};border-radius:10px;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;padding:8px 10px;background:${T.surface2};border:1.5px solid ${T.border};border-radius:10px;flex-wrap:wrap;">
       <span style="font-size:12px;font-weight:700;color:${T.text};">${doneCount} / ${totalCount} today</span>
-      <div style="flex:1;height:6px;border-radius:99px;background:${T.border};overflow:hidden;">
+      <div style="flex:1;height:6px;border-radius:99px;background:${T.border};overflow:hidden;min-width:120px;">
         <div style="height:100%;width:${pct}%;background:${pct===100?T.green:T.accent};border-radius:99px;transition:width .4s;"></div>
       </div>
       <span style="font-size:11px;font-family:'DM Mono',monospace;color:${pct===100?T.green:T.muted};">${pct}%</span>
+      ${aiSettings.masterEnabled?`<button onclick="dumpAiDailyPlan()" style="${btnStyle('default','font-size:10px;padding:4px 9px;')}"><i class="ti ti-sparkles"></i> AI plan</button>`:''}
     </div>`;
 
   return `${summaryBar}${sectionsHtml}${_renderHabitAddForm()}`;

@@ -5,8 +5,8 @@ PURPOSE: AI integration layer — Ollama + Anthropic providers, feature helpers,
 OWNS: ai.js responsibilities
 USES: state.js, storage.js, helpers.js
 STATE_READS: aiSettings, aiStatus, categories, tasks, journalEntries
-STATE_WRITES: aiSettings, aiStatus, aiPendingParse, wizAiPrompt, wizDayEndPrompt, wizCarryOverInsight, weeklyAiNudge
-PUBLIC_API: aiCall, aiCallJson, aiParseTask, aiWizardPrompt, aiBreakdownTask, aiDayEndPrompt, aiCarryOverInsight, aiWeeklyNudge, loadAiSettings, saveAiSettings, settingsSetAiMaster, dumpAiParse, dumpAiConfirm, taskAiBreakdown
+STATE_WRITES: aiSettings, aiStatus, aiPendingParse, aiPendingSuggestion, wizAiPrompt, wizDayEndPrompt, wizCarryOverInsight, weeklyAiNudge
+PUBLIC_API: aiCall, aiCallJson, aiParseTask, aiInterpretJournalEntry, aiWizardPrompt, aiBreakdownTask, aiDayEndPrompt, aiCarryOverInsight, aiWeeklyNudge, aiDailyPlanSuggestion, loadAiSettings, saveAiSettings, settingsSetAiMaster, dumpAiParse, dumpAiConfirm, dumpAiInterpret, dumpAiInterpretAddTasks, dumpAiInterpretClose, dumpAiDailyPlan, dumpAiDailyPlanAddTasks, dumpAiDailyPlanClose, taskAiBreakdown
 DEPENDENCIES: storage.js (save), render.js (render), ui.js (showToast)
 INVARIANTS: all AI calls return null on failure; voice/journal never sent to providers
 LAST_STABILIZED: 2026-06-21
@@ -76,11 +76,20 @@ async function _ollamaCall(systemPrompt, userPrompt, opts = {}) {
       signal:  AbortSignal.timeout(opts.timeout || AI_TIMEOUT_MS),
     });
 
-    if (!response.ok) return null;
+    if (!response.ok) {
+      const txt = await response.text().catch(()=>'');
+      aiStatus.ollama = 'error';
+      aiStatus.ollamaError = `HTTP ${response.status} ${String(txt).slice(0,200)}`;
+      console.warn('Ollama call error:', response.status, txt);
+      return null;
+    }
     const data = await response.json();
     return (data.response || '').trim() || null;
 
   } catch (e) {
+    aiStatus.ollama = 'error';
+    aiStatus.ollamaError = e && e.message ? e.message : String(e);
+    console.warn('Ollama call failed:', e);
     return null;
   }
 }
@@ -106,11 +115,20 @@ async function _anthropicCall(systemPrompt, userPrompt, opts = {}) {
       signal: AbortSignal.timeout(opts.timeout || AI_TIMEOUT_MS),
     });
 
-    if (!response.ok) return null;
+    if (!response.ok) {
+      const txt = await response.text().catch(()=>'');
+      aiStatus.anthropic = 'error';
+      aiStatus.anthropicError = `HTTP ${response.status} ${String(txt).slice(0,200)}`;
+      console.warn('Anthropic call error:', response.status, txt);
+      return null;
+    }
     const data = await response.json();
     return data.content?.[0]?.text?.trim() || null;
 
   } catch (e) {
+    aiStatus.anthropic = 'error';
+    aiStatus.anthropicError = e && e.message ? e.message : String(e);
+    console.warn('Anthropic call failed:', e);
     return null;
   }
 }
@@ -189,6 +207,318 @@ Rules:
 Category ids and names: ${categories.map(c => `${c.id}="${c.name}"`).join(', ') || 'none'}`;
 
   return await aiCallJson(system, rawText.trim());
+}
+
+async function aiInterpretJournalEntry(rawText) {
+  if (!rawText || !rawText.trim()) return null;
+
+  const categoryList = categories.map(c => `${c.id}="${c.name}"`).join(', ') || 'none';
+  const system = `You are an ADHD journaling assistant.
+Read the user's journal entry and return ONLY valid JSON with no explanation or markdown fences.
+Available categories: ${categoryList}.
+JSON shape:
+{
+  "summary":"brief summary of the entry",
+  "insight":"optional reflective observation or theme",
+  "taskSuggestions":[
+    {"text":"task name","ts":"HH:MM or empty","catId":"category id or empty","taskScope":"day or project","note":"why this task is useful or what to do"}
+  ]
+}
+Rules:
+- summary should be one short sentence.
+- insight should be a helpful observation or leave empty if not applicable.
+- If no task can be suggested, return taskSuggestions as an empty array.
+- Do not invent categories; use only available category ids or leave catId empty.`;
+
+  const rawResult = await aiCallJson(system, rawText.trim());
+  return _sanitizeInterpretedJournalResult(rawResult);
+}
+
+function _normalizeJournalTime(raw) {
+  const str = String(raw || '').trim();
+  return /^\d{1,2}:\d{2}$/.test(str) ? str : '';
+}
+
+function _normalizeInterpretedTaskScope(raw) {
+  const scope = String(raw || '').trim().toLowerCase();
+  return scope === 'project' ? 'project' : 'day';
+}
+
+function _normalizeInterpretedTaskSuggestion(suggestion) {
+  if (!suggestion || typeof suggestion !== 'object') return null;
+  const text = String(suggestion.text || '').trim();
+  if (!text) return null;
+
+  const validCatIds = new Set(categories.map(c => c.id));
+  const catId = String(suggestion.catId || '').trim();
+  return {
+    text,
+    ts: _normalizeJournalTime(suggestion.ts),
+    catId: validCatIds.has(catId) ? catId : '',
+    taskScope: _normalizeInterpretedTaskScope(suggestion.taskScope),
+    note: String(suggestion.note || '').trim(),
+  };
+}
+
+function _sanitizeInterpretedJournalResult(result) {
+  if (!result || typeof result !== 'object') return null;
+  return {
+    summary: String(result.summary || '').trim(),
+    insight: String(result.insight || '').trim(),
+    taskSuggestions: Array.isArray(result.taskSuggestions)
+      ? result.taskSuggestions
+          .map(_normalizeInterpretedTaskSuggestion)
+          .filter(Boolean)
+      : [],
+  };
+}
+
+function _normalizeDailyPlanSuggestionItem(item) {
+  if (!item || typeof item !== 'object') return null;
+  const text = String(item.text || '').trim();
+  if (!text) return null;
+  return {
+    text,
+    ts: _normalizeJournalTime(item.ts),
+    note: String(item.note || '').trim(),
+  };
+}
+
+function _sanitizeDailyPlanSuggestionResult(result) {
+  if (!result || typeof result !== 'object') return null;
+  return {
+    summary: String(result.summary || '').trim(),
+    taskSuggestions: Array.isArray(result.taskSuggestions)
+      ? result.taskSuggestions.map(_normalizeDailyPlanSuggestionItem).filter(Boolean)
+      : [],
+  };
+}
+
+async function aiDailyPlanSuggestion(energy, scheduledCount, unscheduledCount, topAvoidanceTask, habitSummary) {
+  const system = `You are an ADHD planning assistant.
+Read the user's current energy, schedule, unscheduled work, and habit pattern.
+Respond ONLY with valid JSON and no markdown fences.
+JSON shape:
+{
+  "summary":"brief planning suggestion",
+  "taskSuggestions":[
+    {"text":"short task idea","ts":"HH:MM or empty","note":"why this helps"}
+  ]
+}
+Keep suggestions concrete, grounded in the user's current day, and avoid vague generalities.`;
+  const user = `Energy: ${energy || 3}/5.
+Scheduled tasks: ${scheduledCount}.
+Unscheduled tasks: ${unscheduledCount}.
+Top avoided task: ${topAvoidanceTask || 'none'}.
+Habit note: ${habitSummary || 'none'}.`;
+  const rawResult = await aiCallJson(system, user, { maxTokens: 180 });
+  return _sanitizeDailyPlanSuggestionResult(rawResult);
+}
+
+async function dumpAiDailyPlan() {
+  if (!aiSettings.masterEnabled || !(aiSettings.ollamaEnabled || aiSettings.anthropicEnabled)) {
+    showToast('AI suggestions unavailable; enable an AI provider first', 'warn');
+    return;
+  }
+  const todayStr = new Date().toDateString();
+  const energyEntry = getEnergyToday ? getEnergyToday(todayStr) : null;
+  const energy = energyEntry ? energyEntry.energy : 3;
+  const scheduledCount = tasks.filter(t => t.ts && t.status !== 'done').length;
+  const unscheduledCount = tasks.filter(t => !t.ts && t.status !== 'done').length;
+  const topAvoidance = tasks
+    .filter(t => t.status !== 'done')
+    .sort((a, b) => avoidanceScore(b) - avoidanceScore(a))[0];
+  const doneHabitCount = (typeof getAllHitsForHabit === 'function')
+    ? habits.filter(h => getAllHitsForHabit(h, todayStr).length).length
+    : 0;
+  const habitSummary = habits.length
+    ? `${habits.length} habits, ${doneHabitCount} logged today`
+    : 'no habits yet';
+  showToast('Asking AI for a daily plan suggestion…', 'ok');
+  const suggestion = await aiDailyPlanSuggestion(energy, scheduledCount, unscheduledCount, topAvoidance ? topAvoidance.text : '', habitSummary);
+  if (!suggestion) {
+    showToast('Could not get AI suggestion', 'warn');
+    aiAuditLog.push({
+      ts: Date.now(),
+      cmd: 'dailyPlanSuggestion',
+      args: { energy, scheduledCount, unscheduledCount, topAvoidance: topAvoidance ? topAvoidance.text : '', habitSummary },
+      result: { ok: false, error: 'could not generate suggestion' },
+      userConfirmed: false,
+    });
+    return;
+  }
+  aiPendingSuggestion = suggestion;
+  aiAuditLog.push({
+    ts: Date.now(),
+    cmd: 'dailyPlanSuggestion',
+    args: { energy, scheduledCount, unscheduledCount, topAvoidance: topAvoidance ? topAvoidance.text : '', habitSummary },
+    result: { ok: true, suggestions: suggestion.taskSuggestions.length },
+    userConfirmed: false,
+  });
+  render();
+}
+
+function dumpAiDailyPlanAddTasks() {
+  if (!aiPendingSuggestion || !Array.isArray(aiPendingSuggestion.taskSuggestions)) return;
+  const suggestions = aiPendingSuggestion.taskSuggestions;
+  const now = Date.now();
+  const added = [];
+  suggestions.forEach((item, index) => {
+    if (!item || !item.text) return;
+    const task = {
+      id: now + index,
+      text: item.text,
+      catId: '',
+      done: false,
+      status: 'todo',
+      taskScope: 'day',
+      doneDate: '',
+      ts: item.ts || '',
+      durationMins: null,
+      order: nextTaskOrder ? nextTaskOrder() : (tasks.length ? tasks.length : 0),
+      createdAt: now,
+      repeat: null,
+      templateId: null,
+      generatedForDate: null,
+      pinned: false,
+      energyRequired: null,
+      anxiety: 0,
+      urgency: 0,
+      subtasks: [],
+      estimatedMins: null,
+      note: item.note || '',
+    };
+    tasks.push(task);
+    added.push(task.text);
+  });
+  if (added.length) {
+    if (typeof save === 'function') save();
+    showToast(`Added ${added.length} suggested task${added.length === 1 ? '' : 's'}`, 'ok');
+  } else {
+    showToast('No valid AI suggestions to add', 'warn');
+  }
+  aiAuditLog.push({
+    ts: Date.now(),
+    cmd: 'addDailyPlanSuggestedTasks',
+    args: { added: added.length },
+    result: { ok: added.length > 0, added },
+    userConfirmed: false,
+  });
+  aiPendingSuggestion = null;
+  if (typeof render === 'function') render();
+}
+
+function dumpAiDailyPlanClose() {
+  aiPendingSuggestion = null;
+  if (typeof render === 'function') render();
+}
+
+async function dumpAiInterpret(journalId) {
+  const entry = journalEntries.find(e => e.id === journalId);
+  if (!entry) return;
+  const raw = String(entry.text || '').trim();
+  if (!raw) return;
+
+  if (!aiSettings.masterEnabled || !(aiSettings.ollamaEnabled || aiSettings.anthropicEnabled)) {
+    showToast('AI interpretation unavailable; enable an AI provider first', 'warn');
+    return;
+  }
+
+  showToast('Interpreting journal entry…', 'ok');
+  const interpreted = await aiInterpretJournalEntry(raw);
+  if (!interpreted) {
+    showToast('Could not interpret entry', 'warn');
+    aiAuditLog.push({
+      ts: Date.now(),
+      cmd: 'interpretJournalEntry',
+      args: { journalId },
+      result: { ok: false, error: 'could not interpret' },
+      userConfirmed: false,
+    });
+    return;
+  }
+
+  aiPendingInterpret = {
+    journalId,
+    rawText: raw,
+    summary: interpreted.summary || '',
+    insight: interpreted.insight || '',
+    taskSuggestions: Array.isArray(interpreted.taskSuggestions) ? interpreted.taskSuggestions : [],
+  };
+  entry.aiInterpretedSummary = aiPendingInterpret.summary;
+  entry.aiInterpretedInsight = aiPendingInterpret.insight;
+  if (typeof save === 'function') save();
+  aiAuditLog.push({
+    ts: Date.now(),
+    cmd: 'interpretJournalEntry',
+    args: { journalId, rawText: raw },
+    result: { ok: true, summary: aiPendingInterpret.summary, taskSuggestions: aiPendingInterpret.taskSuggestions.length },
+    userConfirmed: false,
+  });
+  render();
+}
+
+function dumpAiInterpretAddTasks() {
+  if (!aiPendingInterpret || !Array.isArray(aiPendingInterpret.taskSuggestions)) return;
+  const suggestions = aiPendingInterpret.taskSuggestions;
+  const now = Date.now();
+  const added = [];
+  const entry = journalEntries.find(e => e.id === aiPendingInterpret.journalId);
+
+  suggestions.forEach((suggestion, index) => {
+    const normalized = _normalizeInterpretedTaskSuggestion(suggestion);
+    if (!normalized) return;
+    const task = {
+      id: now + index,
+      text: normalized.text,
+      catId: normalized.catId,
+      done: false,
+      status: 'todo',
+      taskScope: normalized.taskScope,
+      doneDate: '',
+      ts: normalized.ts,
+      durationMins: null,
+      order: nextTaskOrder ? nextTaskOrder() : (tasks.length ? tasks.length : 0),
+      createdAt: Date.now(),
+      repeat: null,
+      templateId: null,
+      generatedForDate: null,
+      pinned: false,
+      energyRequired: null,
+      anxiety: 0,
+      urgency: 0,
+      subtasks: [],
+      estimatedMins: null,
+      note: normalized.note,
+    };
+    tasks.push(task);
+    added.push(task.text);
+  });
+
+  if (entry) {
+    entry.aiInterpretedTasksAdded = added.length;
+  }
+
+  if (added.length) {
+    if (typeof save === 'function') save();
+    showToast(`Added ${added.length} interpreted task${added.length === 1 ? '' : 's'}`, 'ok');
+  } else {
+    showToast('No valid tasks found', 'warn');
+  }
+  aiAuditLog.push({
+    ts: Date.now(),
+    cmd: 'addInterpretedTasks',
+    args: { journalId: aiPendingInterpret.journalId, added: added.length },
+    result: { ok: added.length > 0, added },
+    userConfirmed: false,
+  });
+  aiPendingInterpret = null;
+  if (typeof render === 'function') render();
+}
+
+function dumpAiInterpretClose() {
+  aiPendingInterpret = null;
+  if (typeof render === 'function') render();
 }
 
 async function aiWizardPrompt(energy, scheduledCount, topAvoidanceTask) {
@@ -323,6 +653,10 @@ function openSettings() {
   render();
 }
 
+function openAiSettings() {
+  openSettings();
+}
+
 function closeSettings() {
   showSettingsModal = false;
   render();
@@ -355,6 +689,12 @@ function settingsSetAiMaster(val) {
 
 function settingsSetOllamaEnabled(val) {
   aiSettings.ollamaEnabled = val;
+  saveAiSettings();
+  render();
+}
+
+function settingsSetAiExecuteConfirmation(val) {
+  aiSettings.executeRequiresConfirmation = !!val;
   saveAiSettings();
   render();
 }

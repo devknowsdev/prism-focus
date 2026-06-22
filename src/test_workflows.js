@@ -85,7 +85,7 @@ const ctx = vm.createContext({
 
 const FILES = [
   'constants.js','state.js','widget_registry.js','helpers.js','core.js',
-  'storage.js','ai.js','ui.js','audio.js',
+  'storage.js','ai.js','ai_exec.js','ui.js','audio.js',
   'render_focusboard_cards.js','render_focus_timer.js','render_focus.js','render_tasks.js','render_habits.js',
   'render_checkin.js','render_journal.js','render_daylog.js','actions.js',
   'render_modals.js','render.js','music.js','render_music.js',
@@ -2743,6 +2743,79 @@ test('dumpAiConfirm with null aiPendingParse is no-op', () => {
   eq(get('tasks.length'), 0);
 });
 
+test('_sanitizeInterpretedJournalResult normalizes summary, insight, and task suggestions', () => {
+  run(`render = ()=>{}; categories=[{id:'work',name:'Work'},{id:'home',name:'Home'}];`);
+  const result = run(`_sanitizeInterpretedJournalResult({
+    summary:'  A note  ',
+    insight:'  Keep going ',
+    taskSuggestions:[
+      {text:'  Clean desk ', ts:'9:00', catId:'work', taskScope:'PROJECT', note:'  clear workspace '},
+      {text:'', ts:'25:00', catId:'home', taskScope:'day', note:''}
+    ]
+  })`);
+  eq(result.summary, 'A note');
+  eq(result.insight, 'Keep going');
+  eq(result.taskSuggestions.length, 1);
+  eq(result.taskSuggestions[0].text, 'Clean desk');
+  eq(result.taskSuggestions[0].ts, '9:00');
+  eq(result.taskSuggestions[0].catId, 'work');
+  eq(result.taskSuggestions[0].taskScope, 'project');
+  eq(result.taskSuggestions[0].note, 'clear workspace');
+});
+
+test('dumpAiInterpretAddTasks adds suggested tasks and records journal metadata', () => {
+  run(`render = ()=>{}; save = ()=>{}; categories=[{id:'work',name:'Work'}]; tasks=[]; journalEntries=[{id:900,type:'dump',text:'Test entry',createdAt:Date.now()}]; aiPendingInterpret={ journalId:900, rawText:'Test entry', summary:'Brief', insight:'Insight', taskSuggestions:[ {text:'  Do thing  ', ts:'9:00', catId:'bad', taskScope:'PROJECT', note:' note '}, {text:'', ts:'10:00', catId:'', taskScope:'day', note:''} ] }; dumpAiInterpretAddTasks();`);
+  eq(get('tasks.length'), 1);
+  eq(get('tasks[0].text'), 'Do thing');
+  eq(get('tasks[0].taskScope'), 'project');
+  eq(get('tasks[0].ts'), '9:00');
+  eq(get('journalEntries[0].aiInterpretedTasksAdded'), 1);
+  eq(get('aiPendingInterpret'), null);
+});
+
+test('dumpAiInterpretClose clears aiPendingInterpret', () => {
+  run('render = ()=>{}; aiPendingInterpret={journalId:1}; dumpAiInterpretClose();');
+  eq(get('aiPendingInterpret'), null);
+});
+
+test('_sanitizeDailyPlanSuggestionResult normalizes summary and task suggestions', () => {
+  run(`render = ()=>{};`);
+  const result = run(`_sanitizeDailyPlanSuggestionResult({
+    summary:'  Focus today  ',
+    taskSuggestions:[
+      {text:'  Finish project plan ', ts:'9:00', note:'important milestone'},
+      {text:'', ts:'10:00', note:'skip empty text'}
+    ]
+  })`);
+  eq(result.summary, 'Focus today');
+  eq(result.taskSuggestions.length, 1);
+  eq(result.taskSuggestions[0].text, 'Finish project plan');
+  eq(result.taskSuggestions[0].ts, '9:00');
+  eq(result.taskSuggestions[0].note, 'important milestone');
+});
+
+test('dumpAiDailyPlanAddTasks adds suggested tasks and clears aiPendingSuggestion', () => {
+  run(`render = ()=>{}; save = ()=>{}; tasks=[]; aiPendingSuggestion={
+    summary:'Best day',
+    taskSuggestions:[
+      {text:'Write morning journal', ts:'08:30', note:'capture energy'
+      },
+      {text:'', ts:'09:00', note:'should be ignored'}
+    ]
+  };`);
+  run('dumpAiDailyPlanAddTasks();');
+  eq(get('tasks.length'), 1);
+  eq(get('tasks[0].text'), 'Write morning journal');
+  eq(get('tasks[0].ts'), '08:30');
+  eq(get('tasks[0].note'), 'capture energy');
+  eq(get('aiPendingSuggestion'), null);
+});
+
+test('dumpAiDailyPlanClose clears aiPendingSuggestion', () => {
+  run('render = ()=>{}; aiPendingSuggestion={summary:"x"}; dumpAiDailyPlanClose();');
+  eq(get('aiPendingSuggestion'), null);
+});
+
 test('task unchanged when no AI subtasks added', () => {
   run(`
     tasks=[{id:31001,text:'Write report',catId:'work',done:false,
@@ -2767,6 +2840,61 @@ test('AI key not included in main settings blob', () => {
   assert(!JSON.stringify(mainStore).includes('sk-ant-secret'), 'secret not in settings JSON');
 });
 
+test('aiExecuteCommand addTask creates a new task and audits it', () => {
+  const before = get('tasks.length');
+  run("aiSettings.masterEnabled=true; aiExecuteCommand({cmd:'addTask',args:{text:'FromAI test'}});");
+  eq(get('tasks.length'), before + 1);
+  const found = get("tasks.find(t=>t.text==='FromAI test') !== undefined");
+  assert(found, 'task added by AI');
+  const auditLen = get('aiAuditLog.length');
+  assert(auditLen > 0, 'audit logged');
+});
+
+test('aiExecuteCommand createJournalEntry adds journal and audits', () => {
+  const before = get('journalEntries.length');
+  run("aiSettings.masterEnabled=true; aiExecuteCommand({cmd:'createJournalEntry',args:{text:'AI note',type:'note'}});");
+  eq(get('journalEntries.length'), before + 1);
+  const found = get("journalEntries.find(j=>j.text==='AI note') !== undefined");
+  assert(found, 'journal entry added');
+});
+
+test('aiExecuteCommand updates task fields and audits', () => {
+  run(`tasks=[{id:101,text:'Old',catId:'',done:false,status:'todo',ts:'',order:0,createdAt:Date.now(),repeat:null,templateId:null,generatedForDate:null,pinned:false,urgency:0,subtasks:[],estimatedMins:null,note:'',anxiety:0,taskScope:'project',doneDate:''}]; aiSettings.masterEnabled=true;`);
+  run(`aiExecuteCommand({cmd:'updateTask',args:{id:101,text:'New text',ts:'09:30',pinned:true,urgency:2,note:'updated'}});`);
+  eq(get("tasks[0].text"), 'New text');
+  eq(get("tasks[0].ts"), '09:30');
+  eq(get("tasks[0].pinned"), true);
+  eq(get("tasks[0].urgency"), 2);
+  eq(get("tasks[0].note"), 'updated');
+});
+
+test('aiExecuteCommand schedules a task time', () => {
+  run(`tasks=[{id:102,text:'Schedule',catId:'',done:false,status:'todo',ts:'',order:0,createdAt:Date.now(),repeat:null,templateId:null,generatedForDate:null,pinned:false,urgency:0,subtasks:[],estimatedMins:null,note:'',anxiety:0,taskScope:'day',doneDate:''}]; aiSettings.masterEnabled=true;`);
+  run(`aiExecuteCommand({cmd:'scheduleTask',args:{id:102,ts:'14:15'}});`);
+  eq(get("tasks[0].ts"), '14:15');
+});
+
+test('aiExecuteCommand adds subtasks to a task', () => {
+  run(`tasks=[{id:103,text:'Parent',catId:'',done:false,status:'todo',ts:'',order:0,createdAt:Date.now(),repeat:null,templateId:null,generatedForDate:null,pinned:false,urgency:0,subtasks:[],estimatedMins:null,note:'',anxiety:0,taskScope:'project',doneDate:''}]; aiSettings.masterEnabled=true;`);
+  run(`aiExecuteCommand({cmd:'addSubtasks',args:{taskId:103,subtasks:[{text:'First'},{text:'Second'}]}});`);
+  eq(get('tasks[0].subtasks.length'), 2);
+  eq(get("tasks[0].subtasks[0].text"), 'First');
+  eq(get("tasks[0].subtasks[1].text"), 'Second');
+});
+
+test('aiExecuteCommand sets focus to a task and subtask', () => {
+  run(`tasks=[{id:104,text:'FocusParent',catId:'',done:false,status:'todo',ts:'',order:0,createdAt:Date.now(),repeat:null,templateId:null,generatedForDate:null,pinned:false,urgency:0,subtasks:[{id:1041,text:'Sub',done:false,order:0,practiceCount:0}],estimatedMins:null,note:'',anxiety:0,taskScope:'project',doneDate:''}]; focusTaskId=null; focusSubtaskId=null; aiSettings.masterEnabled=true;`);
+  run(`aiExecuteCommand({cmd:'setFocus',args:{taskId:104,subtaskId:1041}});`);
+  eq(get('focusTaskId'), 104);
+  eq(get('focusSubtaskId'), 1041);
+});
+
+test('aiExecuteCommand prompts when executeRequiresConfirmation is enabled', () => {
+  run(`confirm = ()=>false; tasks=[{id:105,text:'Confirm',catId:'',done:false,status:'todo',ts:'',order:0,createdAt:Date.now(),repeat:null,templateId:null,generatedForDate:null,pinned:false,urgency:0,subtasks:[],estimatedMins:null,note:'',anxiety:0,taskScope:'day',doneDate:''}]; aiSettings.masterEnabled=true; aiSettings.executeRequiresConfirmation=true;`);
+  const result = run(`(function(){ return aiExecuteCommand({cmd:'scheduleTask',args:{id:105,ts:'15:00'}}); })()`);
+  eq(result.ok, false);
+  eq(result.error, 'user declined');
+});
 
 console.log('\n════════════════════════════════════════');
 console.log(`RESULTS: ${passed} passed, ${failed} failed out of ${passed+failed} total`);

@@ -208,6 +208,23 @@ AI INTEGRATION LAYER (ADDED)
     return window.__AI_BOOTSTRAP__?.runBootstrap?.() || {error:"no_installer"};
   };
 
+  window.installLocalAi = async function(){
+    if(typeof window.runAIInstall !== 'function'){
+      showToast('Local installer unavailable in this environment','warn');
+      return;
+    }
+    const result = await window.runAIInstall();
+    if(result?.error){
+      showToast(`Installer error: ${esc(String(result.error))}`,'warn');
+      return;
+    }
+    if(result?.ok){
+      showToast(String(result.ok),'ok');
+      return;
+    }
+    showToast('Local AI installer completed','ok');
+  };
+
   window.aiEvolvePreferences = function(){
     window.__AI_PREFERENCES__?.evolve?.();
   };

@@ -170,6 +170,12 @@ function renderCheckinWidget(todayStr,now){
 
   const intentionsSection=_renderIntentionsSection(dailyIntentions.step,dailyIntentions.answers,dailyIntentions.step==='done',todayStr,now);
 
+  const aiPendingSuggestionHtml = aiPendingSuggestion ? `
+    <div style="padding:10px 12px;background:${T.surface2};border:1.5px solid ${T.accent2};border-radius:10px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+      <div style="font-size:12px;color:${T.text};line-height:1.4;">AI has a daily plan ready: ${esc(aiPendingSuggestion.summary?.slice(0,90) || 'Review suggested tasks')}</div>
+      <button onclick="dumpAiDailyPlan()" style="${btnStyle('accent','font-size:10px;padding:4px 9px;')}">Review</button>
+    </div>` : '';
+
   const weeklyNudgeHtml=weeklyAiNudge?`
     <div style="padding:10px 12px;background:${T.surface2};border:1.5px solid ${T.borderBlue||T.border};border-radius:10px;margin-bottom:10px;display:flex;align-items:flex-start;gap:8px;">
       <span style="font-size:14px;flex-shrink:0;"><i class="ti ti-sparkles"></i></span>
@@ -179,9 +185,13 @@ function renderCheckinWidget(todayStr,now){
 
   return `
     ${weeklyNudgeHtml}
+    ${aiPendingSuggestionHtml}
     <div style="${labelStyle()}"><i class="ti ti-heart-rate-monitor"></i>energy</div>
     ${energySection}
-    <div style="${labelStyle()}"><i class="ti ti-clipboard-list"></i>daily plan</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;${labelStyle().replace(/;$/,'')}">
+      <span><i class="ti ti-clipboard-list"></i>daily plan</span>
+      ${aiSettings.masterEnabled?`<button onclick="dumpAiDailyPlan()" style="${btnStyle('default','font-size:10px;padding:4px 9px;')}"><i class="ti ti-sparkles"></i> AI suggestion</button>`:''}
+    </div>
     ${intentionsSection}
   `;
 }

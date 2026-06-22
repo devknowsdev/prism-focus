@@ -92,6 +92,7 @@ let quickLogStartedAt=0;   // wall time of session start (for accurate record) /
 let audioRecordings=[]; // {id, label, createdAt, durationSecs, mimeType} // MIGRATED TO state/data.js (pending removal)
 let editingAudioLabelId=null; // MIGRATED TO state/uiState.js (pending removal)
 let audioRecState='idle'; // idle | recording // MIGRATED TO state/runtimeState.js (pending removal)
+let listenModeActive=false; // voice command listening mode
 let mediaRecorder=null,audioStream=null,recChunks=[],recStartedAt=0,recTickInterval=null; // MIGRATED TO state/runtimeState.js (pending removal)
 let playingAudioId=null,currentAudioEl=null; // MIGRATED TO state/runtimeState.js (pending removal)
 
@@ -208,12 +209,17 @@ let aiSettings={
   ollamaModel:      'llama3.2',
   anthropicEnabled: false,
   anthropicKey:     '',
+  executeRequiresConfirmation: false, // if true, AI actions require user confirm()
 };
 let aiStatus={
   ollama:    'unknown',
   anthropic: 'unknown',
 };
+let aiAuditLog = []; // {ts, cmd, args, result, userConfirmed}
+let showAiAuditModal = false;
 let aiPendingParse=null;          // parsed task fields awaiting user confirmation
+let aiPendingInterpret=null;      // interpreted journal entry awaiting user review
+let aiPendingSuggestion=null;     // AI-generated daily plan suggestions awaiting review
 let aiShowKey=false;              // settings UI: reveal Anthropic key
 let wizAiPrompt=null;             // personalised Day Start capture prompt (ephemeral)
 let wizDayEndPrompt=null;         // personalised Day End reflection question (ephemeral)

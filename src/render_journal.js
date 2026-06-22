@@ -71,6 +71,10 @@ function renderJournalWidget(todayStr){
       ?`<button onclick="promoteDumpToTask(${e.id})" title="Add to Tasks" style="${btnStyle('accent','font-size:10px;padding:2px 8px;')}"><i class="ti ti-list-check"></i> Task</button>`
       :'';
 
+    const interpretBtn = aiSettings.masterEnabled
+      ? `<button onclick="dumpAiInterpret(${e.id})" title="Interpret journal entry" style="${btnStyle('default','font-size:10px;padding:2px 8px;')}"><i class="ti ti-brain"></i> Interpret</button>`
+      : '';
+
     let contentHtml;
     if(e.type==='voice'&&e.audioId!=null){
       const rec=audioRecordings.find(r=>r.id===e.audioId);
@@ -90,15 +94,25 @@ function renderJournalWidget(todayStr){
       contentHtml=`<div style="font-size:13px;color:${T.text};line-height:1.5;white-space:pre-wrap;word-break:break-word;">${esc(e.text||'')}</div>`;
     }
 
+    const aiMeta = (e.aiInterpretedSummary || e.aiInterpretedInsight || e.aiInterpretedTasksAdded)
+      ? `<div style="margin-top:10px;padding:10px;border-radius:12px;background:${T.surface2};border:1px solid ${T.border};font-size:12px;color:${T.text};line-height:1.4;">
+          ${e.aiInterpretedSummary ? `<div style="font-weight:700;color:${T.text};margin-bottom:4px;">AI summary</div><div style="margin-bottom:8px;color:${T.text};">${esc(e.aiInterpretedSummary)}</div>` : ''}
+          ${e.aiInterpretedInsight ? `<div style="font-weight:700;color:${T.text};margin-bottom:4px;">AI insight</div><div style="margin-bottom:8px;color:${T.text};">${esc(e.aiInterpretedInsight)}</div>` : ''}
+          ${e.aiInterpretedTasksAdded ? `<div style="font-size:11px;color:${T.accent};font-weight:700;">Added ${e.aiInterpretedTasksAdded} task${e.aiInterpretedTasksAdded===1?'':'s'} from this entry</div>` : ''}
+        </div>`
+      : '';
+
     return `<div style="padding:9px 0;border-bottom:1.5px solid ${T.border};">
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;flex-wrap:wrap;">
         <span style="font-size:10px;font-family:'DM Mono',monospace;color:${T.muted2};flex-shrink:0;">${timeStr}</span>
         ${typeBadge(e.type)}
         ${catPill}
         ${promoteBtn}
+        ${interpretBtn}
         <button onclick="deleteJournalEntry(${e.id})" style="${btnStyle('danger','font-size:10px;padding:2px 7px;margin-left:auto;')}"><i class="ti ti-trash"></i></button>
       </div>
       ${contentHtml}
+      ${aiMeta}
     </div>`;
   }).join(''):`<div style="color:${T.muted2};font-size:12px;padding:10px 0;">Nothing here yet.</div>`;
 

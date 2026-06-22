@@ -35,8 +35,29 @@ See [web/README.md](web/README.md) for browser vs. local-server notes.
 
 1. Open **Settings** (gear icon in the header) → **AI** tab
 2. Enable AI features
-3. **Local/private:** install [Ollama](https://ollama.com), run `ollama pull llama3.2`, enable Ollama, test connection
+3. **Local/private:** run `tools/install_local_ai.sh` to install Ollama and pull the default local model, then enable Ollama, test connection
 4. **Cloud:** paste a Claude API key (stored separately; never included in JSON backups)
+
+#### Local AI installer
+
+The repository includes a helper script to install Ollama and the default `llama3.2` model for macOS/Linux:
+
+```bash
+chmod +x tools/install_local_ai.sh
+./tools/install_local_ai.sh
+```
+
+After installation, run:
+
+```bash
+ollama serve --model llama3.2
+```
+
+Then open the app settings, enable Ollama, and test the connection.
+
+> Note: the AI settings UI includes a host integration hook for `window.__AI_BOOTSTRAP__`.
+> In a native wrapper or Electron build, that hook can invoke the local installer directly,
+> but in a plain browser the button falls back to manual shell execution.
 
 ## Tests
 

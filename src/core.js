@@ -114,7 +114,10 @@ function saveEnergyCheckin(todayStr){
   const cutoff=Date.now()-90*24*60*60*1000;
   energyLog=energyLog.filter(e=>(new Date(e.date).getTime()||0)>=cutoff);
   energyPending={energy:null,sensory:null,tag:''};
-  save();showToast('Check-in saved','ok');render();
+  save();
+  showToast('Check-in saved','ok');
+  render();
+  if (typeof _maybeFireWeeklyNudge==='function') _maybeFireWeeklyNudge();
 }
 
 // ---- Daily intentions (guided questions) ----

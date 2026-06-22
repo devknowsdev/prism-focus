@@ -141,6 +141,176 @@ async function stopAudioRecording(){
   render();
 }
 
+let listenRecognition = null;
+
+function getSpeechRecognitionCtor(){
+  if(typeof window==='undefined') return null;
+  return window.SpeechRecognition||window.webkitSpeechRecognition||null;
+}
+
+function toggleListenMode(){
+  if(listenModeActive) stopListenMode();
+  else startListenMode();
+}
+
+function startListenMode(){
+  if(listenModeActive) return;
+  const ctor = getSpeechRecognitionCtor();
+  if(!ctor){
+    showToast('Speech recognition unavailable','warn');
+    return;
+  }
+  try{
+    if(listenRecognition){
+      listenRecognition.onresult=null; listenRecognition.onerror=null; listenRecognition.onend=null;
+      listenRecognition=null;
+    }
+    listenRecognition=new ctor();
+    listenRecognition.lang='en-US';
+    listenRecognition.continuous=true;
+    listenRecognition.interimResults=false;
+    listenRecognition.maxAlternatives=1;
+    listenRecognition.onresult=handleListenResult;
+    listenRecognition.onerror=handleListenError;
+    listenRecognition.onend=()=>{ if(listenModeActive){ setTimeout(()=>{ if(listenModeActive) startListenMode(); },300); } };
+    listenRecognition.start();
+    listenModeActive=true;
+    showToast('Voice commands enabled','ok');
+    render&&render();
+  }catch(e){
+    console.warn('startListenMode failed',e);
+    listenModeActive=false;
+    listenRecognition=null;
+    showToast('Could not enable voice commands','warn');
+  }
+}
+
+function stopListenMode(){
+  if(!listenModeActive) return;
+  listenModeActive=false;
+  if(listenRecognition){
+    listenRecognition.onresult=null;
+    listenRecognition.onerror=null;
+    listenRecognition.onend=null;
+    try{ listenRecognition.stop(); }catch(e){}
+    listenRecognition=null;
+  }
+  showToast('Voice commands stopped','ok');
+  render&&render();
+}
+
+function handleListenError(event){
+  console.warn('Speech recognition error',event);
+  showToast('Voice command error','warn');
+  stopListenMode();
+}
+
+function handleListenResult(event){
+  if(!event||!event.results) return;
+  const last = event.results[event.results.length-1];
+  const transcript = Array.from(last).map(r=>r.transcript).join(' ').trim();
+  if(!transcript) return;
+  if(last.isFinal){
+    processListenCommand(transcript);
+  }
+}
+
+function normalizeVoiceText(str){
+  return String(str||'').replace(/[^\w\s]/g,' ').replace(/\s+/g,' ').trim().toLowerCase();
+}
+
+function findTaskByVoiceText(query){
+  const target = normalizeVoiceText(query);
+  if(!target||!Array.isArray(tasks)) return null;
+  const matches = tasks
+    .filter(t=>t && typeof t.text==='string')
+    .map(t=>({task:t,text:normalizeVoiceText(t.text)}));
+  const exact = matches.find(x=>x.text===target);
+  if(exact) return exact.task;
+  const includes = matches.filter(x=>x.text.includes(target));
+  if(includes.length===1) return includes[0].task;
+  if(includes.length>1) return includes[0].task;
+  const prefix = matches.filter(x=>target.includes(x.text));
+  if(prefix.length) return prefix[0].task;
+  return null;
+}
+
+function processListenCommand(text){
+  const lower = normalizeVoiceText(text);
+  if(!lower) return;
+
+  if(lower.includes('clear focus') || lower.includes('remove focus')){
+    if(typeof clearFocus==='function') clearFocus();
+    showToast('Focus cleared','ok');
+    return;
+  }
+
+  if(lower.includes('stop timer') || lower.includes('pause timer') || lower==='stop' || lower==='pause'){
+    if(timerRunning){
+      if(typeof stopTimerInternal==='function') stopTimerInternal();
+      showToast('Timer paused','ok');
+    } else {
+      showToast('No timer is running','warn');
+    }
+    return;
+  }
+
+  if(lower.includes('start timer') || lower.includes('resume timer') || lower==='resume'){
+    if(!focusTaskId){
+      showToast('No task is focused','warn');
+      return;
+    }
+    if(timerRunning){
+      showToast('Timer already running','warn');
+      return;
+    }
+    if(typeof startTimerInternal==='function') startTimerInternal();
+    showToast('Timer started','ok');
+    return;
+  }
+
+  if(lower.startsWith('focus ') || lower.startsWith('focus on ') || lower.startsWith('select ') || lower.startsWith('open ')){
+    const query = lower.replace(/^(focus on |focus |select |open )/, '').trim();
+    const t = findTaskByVoiceText(query);
+    if(t){
+      if(typeof setFocus==='function') setFocus(t.id);
+      showToast(`Focused "${t.text}"`,'ok');
+      return;
+    }
+  }
+
+  if(lower.startsWith('start ') || lower.startsWith('begin ') || lower.startsWith('resume ')){
+    const query = lower.replace(/^(start |begin |resume )/, '').trim();
+    const t = findTaskByVoiceText(query);
+    if(t){
+      if(typeof startTaskStopwatch==='function') startTaskStopwatch(t.id);
+      showToast(`Started "${t.text}"`,'ok');
+      return;
+    }
+  }
+
+  if(lower.startsWith('complete ') || lower.startsWith('finish ') || lower.startsWith('mark ') || lower.includes(' done')){
+    let query = lower.replace(/^(complete |finish |mark )/, '').replace(/ as done$/, '').replace(/ done$/, '').trim();
+    const t = findTaskByVoiceText(query);
+    if(t){
+      if(t.status!=='done'){
+        if(typeof toggleTask==='function') toggleTask(t.id);
+        showToast(`Marked "${t.text}" done`,'ok');
+      } else {
+        showToast(`"${t.text}" is already done`,'warn');
+      }
+      return;
+    }
+  }
+
+  showToast(`Heard: "${text}"`, 'warn');
+}
+
+if(typeof window !== 'undefined'){
+  window.toggleListenMode = toggleListenMode;
+  window.processListenCommand = processListenCommand;
+}
+
 function stopPlayback(){
   if(currentAudioEl){
     currentAudioEl.pause();

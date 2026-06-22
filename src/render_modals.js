@@ -387,6 +387,11 @@ function renderSettingsModalHtml(){
       <input type="checkbox" ${aiSettings.masterEnabled?'checked':''} onchange="settingsSetAiMaster(this.checked)"/>
       <span style="font-size:13px;color:${T.text};">Enable AI features</span>
     </label>
+    <label style="display:flex;align-items:center;gap:8px;margin-bottom:14px;cursor:pointer;">
+      <input type="checkbox" ${listenModeActive?'checked':''} onchange="toggleListenMode()"/>
+      <span style="font-size:13px;color:${T.text};">Enable voice commands</span>
+    </label>
+    <div style="font-size:10px;color:${T.muted2};margin-bottom:12px;">Speak commands like “start timer”, “stop timer”, “focus [task name]”, or “start [task name]”.</div>
     <div style="font-size:10px;font-weight:700;color:${T.muted};letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;">Providers</div>
     <div style="margin-bottom:12px;">
       <span style="font-size:11px;color:${T.muted};">Priority:</span>
@@ -441,6 +446,10 @@ function renderSettingsModalHtml(){
       </div>
       <div style="font-size:10px;color:${T.muted2};margin-top:6px;">Key stored locally only. Task text is sent to Anthropic servers.</div>
     </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+      <button onclick="installLocalAi()" style="${btnStyle('default','font-size:11px;padding:6px 10px;')}"><i class="ti ti-download"></i> Install local AI</button>
+      <button onclick="openAiAuditModal()" style="${btnStyle('default','font-size:11px;padding:6px 10px;')}"><i class="ti ti-list-check"></i> View AI audit log</button>
+    </div>
     <div style="font-size:10px;color:${T.muted2};padding:8px;background:${T.surface3};border-radius:8px;line-height:1.5;">
       <i class="ti ti-info-circle"></i> Voice recordings and journal entries are never sent to any AI provider.
       Only task text and summary statistics are used in AI calls.
@@ -454,6 +463,112 @@ function renderSettingsModalHtml(){
         <button onclick="closeSettings()" style="${btnStyle('default','padding:5px 9px;font-size:14px;')}"><i class="ti ti-x"></i></button>
       </div>
       ${aiTab}
+    </div>
+  </div>`;
+}
+
+function renderAiAuditHtml(){
+  const rows = (aiAuditLog || []).slice().reverse().map(a => {
+    const time = new Date(a.ts).toLocaleString();
+    return `<div style="padding:10px;border-bottom:1px solid ${T.border};display:flex;flex-direction:column;gap:6px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+        <div style="font-weight:800;color:${T.text};font-size:13px;">${esc(a.cmd)}</div>
+        <div style="font-size:11px;color:${T.muted};">${time}</div>
+      </div>
+      <div style="font-size:12px;color:${T.muted2};font-family:DM Mono,monospace;white-space:pre-wrap;">args: ${esc(JSON.stringify(a.args))}</div>
+      <div style="font-size:12px;color:${T.muted2};font-family:DM Mono,monospace;white-space:pre-wrap;">result: ${esc(JSON.stringify(a.result))}</div>
+    </div>`;
+  }).join('') || `<div style="color:${T.muted2};padding:12px;font-size:12px;">No AI audit entries yet.</div>`;
+
+  return `
+  <div onclick="if(event.target===this)closeAiAuditModal()" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1100;display:flex;align-items:center;justify-content:center;padding:16px;">
+    <div style="background:${T.surface};border:1.5px solid ${T.border2};border-radius:14px;padding:14px;width:100%;max-width:720px;box-sizing:border-box;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <div style="font-size:15px;font-weight:800;color:${T.text};">AI Audit Log</div>
+        <div style="display:flex;gap:8px;">
+          <button onclick="aiClearAuditLog();render();" style="${btnStyle('danger','font-size:12px;padding:6px 10px;')}"><i class=\"ti ti-trash\"></i> Clear</button>
+          <button onclick="closeAiAuditModal()" style="${btnStyle('default','font-size:12px;padding:6px 10px;')}">Close</button>
+        </div>
+      </div>
+      <div style="max-height:420px;overflow:auto;border-top:1px solid ${T.border};padding-top:8px;">
+        ${rows}
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderAiInterpretHtml(){
+  const interp = aiPendingInterpret || {};
+  const tasks = Array.isArray(interp.taskSuggestions) ? interp.taskSuggestions : [];
+  const tasksHtml = tasks.length ? tasks.map(t => {
+    return `<div style="padding:10px;border-bottom:1px solid ${T.border};">
+      <div style="font-size:12px;font-weight:700;color:${T.text};">${esc(t.text || '[no task text]')}</div>
+      <div style="font-size:11px;color:${T.muted2};font-family:DM Mono,monospace;white-space:pre-wrap;">${esc(t.ts || '')}${t.catId?` · ${esc(t.catId)}`:''}${t.taskScope?` · ${esc(t.taskScope)}`:''}</div>
+      ${t.note?`<div style="font-size:11px;color:${T.text};margin-top:4px;">${esc(t.note)}</div>`:''}
+    </div>`;
+  }).join('') : `<div style="color:${T.muted2};padding:12px;font-size:12px;">No task suggestions were generated.</div>`;
+
+  return `
+  <div onclick="if(event.target===this)dumpAiInterpretClose()" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1100;display:flex;align-items:center;justify-content:center;padding:16px;">
+    <div onclick="event.stopPropagation()" style="background:${T.surface};border:1.5px solid ${T.border2};border-radius:14px;padding:16px;width:100%;max-width:620px;box-sizing:border-box;max-height:90vh;overflow:auto;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:10px;flex-wrap:wrap;">
+        <div>
+          <div style="font-size:15px;font-weight:800;color:${T.text};">AI Journal Interpretation</div>
+          <div style="font-size:12px;color:${T.muted2};">Review the summary and suggested tasks before adding them.</div>
+        </div>
+        <button onclick="dumpAiInterpretClose()" style="${btnStyle('default','font-size:12px;padding:6px 10px;')}">Close</button>
+      </div>
+      <div style="margin-bottom:12px;padding:12px;background:${T.surface2};border-radius:12px;">
+        <div style="font-size:12px;font-weight:700;color:${T.text};margin-bottom:6px;">Summary</div>
+        <div style="font-size:13px;color:${T.text};line-height:1.6;white-space:pre-wrap;">${esc(interp.summary || 'No summary available.')}</div>
+      </div>
+      <div style="margin-bottom:12px;padding:12px;background:${T.surface2};border-radius:12px;">
+        <div style="font-size:12px;font-weight:700;color:${T.text};margin-bottom:6px;">Insight</div>
+        <div style="font-size:13px;color:${T.text};line-height:1.6;white-space:pre-wrap;">${esc(interp.insight || 'No insight captured.')}</div>
+      </div>
+      <div style="margin-bottom:12px;">
+        <div style="font-size:12px;font-weight:700;color:${T.text};margin-bottom:8px;">Task suggestions</div>
+        <div style="border:1.5px solid ${T.border};border-radius:12px;overflow:hidden;">${tasksHtml}</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+        <button onclick="dumpAiInterpretClose()" style="${btnStyle('default','font-size:12px;padding:6px 10px;')}">Dismiss</button>
+        <button onclick="dumpAiInterpretAddTasks()" style="${btnStyle('accent','font-size:12px;padding:6px 10px;')}">Add suggested tasks</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderAiDailyPlanHtml(){
+  const pending = aiPendingSuggestion || {};
+  const tasks = Array.isArray(pending.taskSuggestions) ? pending.taskSuggestions : [];
+  const tasksHtml = tasks.length ? tasks.map((t) => `
+      <div style="padding:10px;border-bottom:1px solid ${T.border};">
+        <div style="font-size:12px;font-weight:700;color:${T.text};">${esc(t.text)}</div>
+        <div style="font-size:11px;color:${T.muted2};font-family:DM Mono,monospace;white-space:pre-wrap;">${esc(t.ts || '')}${t.note?` · ${esc(t.note)}`:''}</div>
+      </div>
+    `).join('') : `<div style="color:${T.muted2};padding:12px;font-size:12px;">No suggestions available.</div>`;
+  return `
+  <div onclick="if(event.target===this)dumpAiDailyPlanClose()" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1100;display:flex;align-items:center;justify-content:center;padding:16px;">
+    <div onclick="event.stopPropagation()" style="background:${T.surface};border:1.5px solid ${T.border2};border-radius:14px;padding:16px;width:100%;max-width:620px;box-sizing:border-box;max-height:90vh;overflow:auto;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:10px;flex-wrap:wrap;">
+        <div>
+          <div style="font-size:15px;font-weight:800;color:${T.text};">AI Daily Planning Suggestions</div>
+          <div style="font-size:12px;color:${T.muted2};">Review the AI plan before adding suggested tasks to your list.</div>
+        </div>
+        <button onclick="dumpAiDailyPlanClose()" style="${btnStyle('default','font-size:12px;padding:6px 10px;')}">Close</button>
+      </div>
+      <div style="margin-bottom:12px;padding:12px;background:${T.surface2};border-radius:12px;">
+        <div style="font-size:12px;font-weight:700;color:${T.text};margin-bottom:6px;">Summary</div>
+        <div style="font-size:13px;color:${T.text};line-height:1.6;white-space:pre-wrap;">${esc(pending.summary || 'AI suggests a few concrete tasks for your day.')}</div>
+      </div>
+      <div style="margin-bottom:12px;">
+        <div style="font-size:12px;font-weight:700;color:${T.text};margin-bottom:8px;">Suggested tasks</div>
+        <div style="border:1.5px solid ${T.border};border-radius:12px;overflow:hidden;">${tasksHtml}</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+        <button onclick="dumpAiDailyPlanClose()" style="${btnStyle('default','font-size:12px;padding:6px 10px;')}">Dismiss</button>
+        <button onclick="dumpAiDailyPlanAddTasks()" style="${btnStyle('accent','font-size:12px;padding:6px 10px;')}">Add suggested tasks</button>
+      </div>
     </div>
   </div>`;
 }

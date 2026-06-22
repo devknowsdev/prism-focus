@@ -73,6 +73,15 @@ function _renderPlannerSidebar(){
     </div>`:'';
 
   // Today shortcut
+  const plannerAiBtn = aiSettings.masterEnabled ? `
+    ${divider}
+    <button onclick="dumpAiDailyPlan()" title="Ask AI for a planner suggestion"
+      style="position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 0;border:none;cursor:pointer;border-radius:8px;width:100%;background:${T.surface2};color:${T.accent};">
+      <i class="ti ti-sparkles" style="font-size:15px;"></i>
+      <span style="font-size:8px;font-weight:700;">AI plan</span>
+      ${aiPendingSuggestion?`<span style="position:absolute;top:4px;right:6px;width:6px;height:6px;border-radius:50%;background:${T.accent};"></span>`:''}
+    </button>` : '';
+
   const todayBtn=`
     ${divider}
     <button onclick="plannerSelectDate(todayYMD())" title="Go to today"
@@ -85,6 +94,7 @@ function _renderPlannerSidebar(){
     ${viewBtns}
     ${zoomControls}
     ${layoutControls}
+    ${plannerAiBtn}
     ${todayBtn}
   </div>`;
 }
@@ -359,6 +369,7 @@ function _renderPlannerWeek(){
                background:${isToday?T.surface3:T.surface};cursor:pointer;user-select:none;">
         <div style="font-size:10px;font-weight:${isToday?800:600};color:${isToday?T.accent:T.muted};">${DAY_SHORT[i]}</div>
         <div style="font-size:12px;font-weight:${isToday?800:500};color:${isToday?T.accent:T.text};">${d.getDate()}</div>
+        ${aiPendingSuggestion && isToday?`<div style="width:8px;height:8px;border-radius:50%;background:${T.accent};margin:4px auto 0;"></div>`:''}
         ${dumpCount?`<div style="font-size:8px;color:${T.accent2};font-weight:700;">${dumpCount}</div>`:''}
       </div>
       <!-- Pills column -->
@@ -425,6 +436,7 @@ function _renderPlannerMonth(){
         style="border:${isSelected||isToday?'2px':'1px'} solid ${isSelected?T.accent2:isToday?T.border2:T.border};
                vertical-align:top;cursor:pointer;padding:3px 4px;min-height:56px;background:${bg};user-select:none;">
         <div style="font-size:11px;font-weight:${isToday?800:500};color:${isToday?T.accent:isPast?T.muted2:T.text};">${dayNum}</div>
+        ${aiPendingSuggestion && isToday?`<div style="width:8px;height:8px;border-radius:50%;background:${T.accent};margin:4px 0 2px;"></div>`:''}
         <div style="display:flex;flex-wrap:wrap;gap:2px;margin-top:2px;align-items:center;">${dayDots}${overflow}${dumpCount?`<span style="font-size:8px;font-weight:700;color:${T.accent2};">${dumpCount}</span>`:''}</div>
       </td>`;
     }).join('');
@@ -520,10 +532,19 @@ function renderPlannerWidget(){
   else if(plannerView==='week')                      body=_renderPlannerWeek();
   else                                               body=_renderPlannerMonth();
 
+  const aiBanner = aiPendingSuggestion ? `
+    <div style="padding:10px 12px;margin:12px 16px 0 16px;background:${T.surface2};border:1.5px solid ${T.accent2};border-radius:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+      <div style="font-size:12px;color:${T.text};line-height:1.4;">AI daily plan ready — review the suggestion and add tasks.</div>
+      <button onclick="dumpAiDailyPlan()" style="${btnStyle('accent','font-size:10px;padding:4px 9px;')}">Review</button>
+    </div>` : '';
+
   const sidebar=_renderPlannerSidebar();
   return `<div style="margin:-14px;overflow:hidden;border-radius:14px;display:flex;min-height:300px;">
     ${sidebar}
-    <div style="flex:1;min-width:0;display:flex;flex-direction:column;background:${T.surface};">${body}</div>
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column;background:${T.surface};">
+      ${aiBanner}
+      ${body}
+    </div>
   </div>`;
 }
 

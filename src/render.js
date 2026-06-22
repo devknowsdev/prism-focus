@@ -123,6 +123,13 @@ function _renderAiHeaderBtn(){
   </button>`;
 }
 
+function _renderListenHeaderBtn(){
+  const on=listenModeActive;
+  return `<button onclick="toggleListenMode()" title="${on?'Voice listen mode on':'Enable voice commands'}" style="${btnStyle(on?'accent2':'default','padding:5px 9px;font-size:14px;border-radius:8px;')}">
+    <i class="ti ti-${on?'microphone-off':'microphone'}"></i>
+  </button>`;
+}
+
 // ── Debounced render — batches rapid consecutive render() calls ───────────────
 let _renderTimer=null;
 function render(){
@@ -214,6 +221,8 @@ function _doRender(){
       <span class="header-date" style="font-size:11px;color:${T.muted};">${dateStr}</span>
       ${_renderWizardHeaderBtn(now)}
       ${_renderAiHeaderBtn()}
+      ${_renderListenHeaderBtn()}
+      <button onclick="dumpAiDailyPlan()" title="Ask AI for a daily plan suggestion" style="${btnStyle('default','padding:5px 9px;font-size:14px;border-radius:8px;')}"><i class="ti ti-list-check"></i></button>
       <button onclick="openSettings()" title="Settings" style="${btnStyle('default','padding:5px 9px;font-size:14px;border-radius:8px;')}"><i class="ti ti-settings"></i></button>
       <button onclick="enterCrisisMode()" title="Focus mode — hide everything except the timer" style="${btnStyle('default','padding:5px 9px;font-size:14px;border-radius:8px;')}"><i class="ti ti-focus-2"></i></button>
       <button onclick="toggleDark()" title="${darkMode?'Light mode':'Dark mode'}" style="${btnStyle('default','padding:5px 9px;font-size:14px;border-radius:8px;')}"><i class="ti ti-${darkMode?'sun':'moon'}"></i></button>
@@ -227,6 +236,9 @@ function _doRender(){
   </div>`:''}
   ${showCatModal?renderCatModalHtml():''}
   ${showSettingsModal?renderSettingsModalHtml():''}
+  ${showAiAuditModal?renderAiAuditHtml():''}
+  ${aiPendingInterpret?renderAiInterpretHtml():''}
+  ${aiPendingSuggestion?renderAiDailyPlanHtml():''}
   ${showFocusModal?renderFocusModalHtml():''}
   ${showSessionsModal?renderSessionsModalHtml():''}
   ${showQuickLog?renderQuickLogHtml():''}
