@@ -1,9 +1,9 @@
 
 # Personal Systems Constitution
 
-This repository defers to the canonical `Personal Systems Constitution` maintained in the `AI-Forge` repository.
+This repository defers to the canonical `Personal Systems Constitution` maintained in the `prism-spectra` repository.
 
-Canonical copy: [AI-Forge/PERSONAL_SYSTEMS_CONSTITUTION.md](AI-Forge/PERSONAL_SYSTEMS_CONSTITUTION.md)
+Canonical copy: [prism-spectra/PERSONAL_SYSTEMS_CONSTITUTION.md](prism-spectra/PERSONAL_SYSTEMS_CONSTITUTION.md)
 
 An archived local copy has been moved to `docs/archived/PERSONAL_SYSTEMS_CONSTITUTION.md`.
 

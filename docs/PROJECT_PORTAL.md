@@ -9,17 +9,17 @@ Overview
 - Local-first, no build step; UI boots via `index.html` → `init.js`.
 
 Quick start
-- Read: [ADHDashboard README.md](ADHDashboard-git/README.md)
+ - Read: [prism-focus README.md](prism-focus/README.md)
 - Run tests: `node src/test_workflows.js`
 
 Key orientation docs
-- [docs/ORIENTATION.md](ADHDashboard-git/docs/ORIENTATION.md)
-- [docs/AI_API.md](ADHDashboard-git/docs/AI_API.md)
-- [generated/PROJECT_INDEX.md](ADHDashboard-git/generated/PROJECT_INDEX.md)
-- [generated/AI_CONTEXT.md](ADHDashboard-git/generated/AI_CONTEXT.md)
+ - [docs/ORIENTATION.md](prism-focus/docs/ORIENTATION.md)
+ - [docs/AI_API.md](prism-focus/docs/AI_API.md)
+ - [generated/PROJECT_INDEX.md](prism-focus/generated/PROJECT_INDEX.md)
+ - [generated/AI_CONTEXT.md](prism-focus/generated/AI_CONTEXT.md)
 
 Workspace-level portal
-- Canonical workspace portal: [AI-Forge/docs/PROJECT_PORTAL.md](AI-Forge/docs/PROJECT_PORTAL.md)
+ - Canonical workspace portal: [prism-spectra/docs/PROJECT_PORTAL.md](prism-spectra/docs/PROJECT_PORTAL.md)
 
 Where to look for common changes (recipes)
 - **Change task UI**: `src/render_tasks.js`, `src/actions_tasks.js` — run `node src/test_workflows.js` after edits.
