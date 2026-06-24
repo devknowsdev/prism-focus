@@ -7,4 +7,32 @@ on:
 
 jobs:
   docs-lint:
-    uses: devknowsdev/workspace-meta/.github/workflows/reusable-docs-lint.yml@main
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check markdown formatting
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(find . -type f -name '*.md' -not -path './.git/*' | sort)
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "No markdown files found."
+            exit 0
+          fi
+          printf '%s\n' "${files[@]}" | while IFS= read -r file; do
+            python3 - "$file" <<'PY'
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+raw = path.read_bytes()
+if b'\r\n' in raw:
+    raise SystemExit(f"{path}: CRLF line endings are not allowed")
+if raw and not raw.endswith(b'\n'):
+    raise SystemExit(f"{path}: missing trailing newline")
+for idx, line in enumerate(raw.decode('utf-8').splitlines(), start=1):
+    if line.rstrip() != line:
+        raise SystemExit(f"{path}:{idx}: trailing whitespace")
+print(f"ok {path}")
+PY
+          done
