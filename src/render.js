@@ -142,6 +142,11 @@ function _renderSetupHeaderBtn(){
   return `<button onclick="openFocusSetup()" title="Setup guide" style="${btnStyle('default','padding:5px 9px;font-size:14px;border-radius:8px;')}"><i class="ti ti-compass"></i></button>`;
 }
 
+function _renderImportHeaderBtn(){
+  if(typeof openEpkImport!=='function') return '';
+  return `<button onclick="openEpkImport()" title="Review EPK packet import" style="${btnStyle('default','padding:5px 9px;font-size:14px;border-radius:8px;')}"><i class="ti ti-inbox"></i></button>`;
+}
+
 // ── Debounced render — batches rapid consecutive render() calls ───────────────
 let _renderTimer=null;
 function render(){
@@ -232,6 +237,7 @@ function _doRender(){
     <div style="display:flex;align-items:center;gap:10px;">
       <span class="header-date" style="font-size:11px;color:${T.muted};">${dateStr}</span>
       ${_renderSetupHeaderBtn()}
+      ${_renderImportHeaderBtn()}
       ${_renderWizardHeaderBtn(now)}
       ${_renderAiHeaderBtn()}
       ${_renderChatHeaderBtn()}
@@ -252,6 +258,7 @@ function _doRender(){
   ${showCatModal?renderCatModalHtml():''}
   ${showSettingsModal?renderSettingsModalHtml():''}
   ${showFocusSetupModal?renderFocusSetupModalHtml():''}
+  ${typeof showEpkImportModal!=='undefined'&&showEpkImportModal&&typeof renderEpkImportModalHtml==='function'?renderEpkImportModalHtml():''}
   ${showAiAuditModal?renderAiAuditHtml():''}
   ${aiPendingInterpret?renderAiInterpretHtml():''}
   ${aiPendingSuggestion?renderAiDailyPlanHtml():''}

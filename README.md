@@ -19,6 +19,7 @@ Local-first productivity dashboard designed for ADHD and autism-friendly workflo
 - **Habits** — daily task tracking with hit grid
 - **Music Tools** — metronome, tuner, task music metadata
 - **First-run guide** — calm launch, backup, storage, and optional-AI setup reminders
+- **EPK import review** — paste an EPK event packet, review proposed tasks, then explicitly import selected items
 - **AI (optional)** — Ollama (local) or Claude for NL task parse, wizard prompts, breakdowns, and weekly nudges; degrades gracefully when off
 
 ## Quick start
@@ -34,7 +35,7 @@ Local-first productivity dashboard designed for ADHD and autism-friendly workflo
 3. Use the app. Data persists automatically in `localStorage`.
 4. Read the first-run setup guide when it appears. You can reopen it later from the compass button in the header.
 
-See [web/README.md](web/README.md) for browser vs. local-server notes, [docs/FIRST_RUN_SETUP.md](docs/FIRST_RUN_SETUP.md) for the full first-run setup path, and [docs/INSTALL_AND_BACKUP_CHECKLIST.md](docs/INSTALL_AND_BACKUP_CHECKLIST.md) for backup/install/PWA verification notes.
+See [web/README.md](web/README.md) for browser vs. local-server notes, [docs/FIRST_RUN_SETUP.md](docs/FIRST_RUN_SETUP.md) for the full first-run setup path, [docs/INSTALL_AND_BACKUP_CHECKLIST.md](docs/INSTALL_AND_BACKUP_CHECKLIST.md) for backup/install/PWA verification notes, and [docs/EPK_IMPORT_REVIEW.md](docs/EPK_IMPORT_REVIEW.md) for the EPK packet review flow.
 
 ### First-run setup
 
