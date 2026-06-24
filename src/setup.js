@@ -4,7 +4,7 @@ LAYER: ui/runtime
 PURPOSE: First-run setup readiness guide for prism-focus.
 OWNS: first-run setup modal, setup checklist reminders
 USES: localStorage, render.js, ui.js
-STATE_READS: none
+STATE_READS: showFocusSetupModal
 STATE_WRITES: showFocusSetupModal
 PUBLIC_API: maybeOpenFocusSetup, openFocusSetup, closeFocusSetup, completeFocusSetup, renderFocusSetupModalHtml
 INVARIANTS: setup guide is informational; no imports, no hidden writes, no storage migration
@@ -12,7 +12,6 @@ LAST_STABILIZED: 2026-06-24
 */
 
 const FOCUS_SETUP_SEEN_KEY = 'adhd4_focus_setup_seen_v1';
-let showFocusSetupModal = false;
 
 function maybeOpenFocusSetup(){
   try{
