@@ -1,5 +1,5 @@
-// Minimal AiAdapter for the ADHDashboard to talk to the AI-Forge POC daemon.
-// Assumes the POC daemon is running on 127.0.0.1:3000 and uses the dev-local-token.
+// Minimal AiAdapter for prism-focus to talk to the Prism Spectra local daemon/gateway.
+// Defaults to 127.0.0.1:3000 and a dev-local-token unless the user stores a local token.
 // This file intentionally keeps a tiny, stable surface so the dashboard can
 // feature-detect a local orchestrator without coupling to implementation details.
 (function(){
@@ -9,7 +9,7 @@
   async function jsonFetch(path, body, method = 'POST'){
     const token = (typeof localStorage !== 'undefined' && localStorage.getItem('adhd4_local_ai_token')) || window.__AI_FORGE_LOCAL_TOKEN__ || 'dev-local-token';
     const opts = { method, headers: { 'Content-Type': 'application/json', 'x-local-token': token } };
-    if (method === 'POST') opts.body = JSON.stringify(body || {});
+    if (method === 'POST' || method === 'PATCH') opts.body = JSON.stringify(body || {});
     const res = await fetch(LOCAL_URL + path, opts);
     if (!res.ok) {
       const txt = await res.text().catch(()=>'');
@@ -27,6 +27,14 @@
         const j = await res.json();
         return !!(j && j.ok && j.available);
       } catch (e) { return false; }
+    },
+    async aiRequest(opts){
+      return await jsonFetch('/ai/request', {
+        sourceApp: 'prism-focus',
+        riskClass: 'read-only',
+        preferredMode: 'local-first',
+        ...(opts || {}),
+      }, 'POST');
     },
     async buildGraph(opts){
       return await jsonFetch('/build-graph', opts, 'POST');
@@ -83,76 +91,76 @@
     async postConversationMessage(conversationId, body){
       return await jsonFetch(`/conversations/${conversationId}/messages`, body, 'POST');
     },
-      async uploadAttachment(file, conversationId = null){
-        // file: File object (browser). Convert to base64 and POST to /upload
-        function fileToBase64(f){
-          return new Promise((resolve,reject)=>{
-            const reader = new FileReader();
-            reader.onload = () => {
-              const s = reader.result || '';
-              // data:<type>;base64,<b64>
-              const parts = String(s).split(',');
-              resolve(parts.length>1?parts[1]:parts[0]);
-            };
-            reader.onerror = reject;
-            reader.readAsDataURL(f);
-          });
-        }
-        const b64 = await fileToBase64(file);
-        return await jsonFetch('/upload', { conversationId, filename: file.name, contentBase64: b64, contentType: file.type || 'application/octet-stream' }, 'POST');
-      },
-      async getAttachmentMeta(attachmentId){
-        return await jsonFetch(`/attachments/${attachmentId}/meta`, {}, 'GET');
-      },
-      async downloadAttachment(attachmentId){
-        const token = (typeof localStorage !== 'undefined' && localStorage.getItem('adhd4_local_ai_token')) || window.__AI_FORGE_LOCAL_TOKEN__ || LOCAL_TOKEN;
-        const res = await fetch(LOCAL_URL + `/download/${attachmentId}`, { method: 'GET', headers: token ? { 'x-local-token': token } : {} });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return await res.blob();
-      },
-      async listAllAttachments(){
-        return await jsonFetch('/attachments', {}, 'GET');
-      },
-      async addAttachmentTag(attachmentId, tag){
-        return await jsonFetch(`/attachments/${attachmentId}/tags`, { tag }, 'POST');
-      },
-      async removeAttachmentTag(attachmentId, tag){
-        const token = (typeof localStorage !== 'undefined' && localStorage.getItem('adhd4_local_ai_token')) || window.__AI_FORGE_LOCAL_TOKEN__ || LOCAL_TOKEN;
-        const encoded = encodeURIComponent(String(tag));
-        const res = await fetch(LOCAL_URL + `/attachments/${attachmentId}/tags/${encoded}`, { method: 'DELETE', headers: token ? { 'x-local-token': token } : {} });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return await res.json();
-      },
-      async renameAttachment(attachmentId, filename){
-        return await jsonFetch(`/attachments/${attachmentId}/rename`, { filename }, 'POST');
-      },
-      async deleteAttachment(attachmentId){
-        const token = (typeof localStorage !== 'undefined' && localStorage.getItem('adhd4_local_ai_token')) || window.__AI_FORGE_LOCAL_TOKEN__ || LOCAL_TOKEN;
-        const res = await fetch(LOCAL_URL + `/attachments/${attachmentId}`, { method: 'DELETE', headers: token ? { 'x-local-token': token } : {} });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return await res.json();
-      },
-      async moveAttachment(attachmentId, destName){
-        return await jsonFetch(`/attachments/${attachmentId}/move`, { destName }, 'POST');
-      },
-      async compareAttachments(idA, idB){
-        return await jsonFetch('/attachments/compare', { idA, idB }, 'POST');
-      },
-      async repairAttachment(attachmentId, opts = { apply: false }){
-        return await jsonFetch(`/attachments/${attachmentId}/repair`, opts, 'POST');
-      },
-      async listCheckpoints(){
-        return await jsonFetch('/checkpoints', {}, 'GET');
-      },
-      async getCheckpoint(nodeId){
-        const token = (typeof localStorage !== 'undefined' && localStorage.getItem('adhd4_local_ai_token')) || window.__AI_FORGE_LOCAL_TOKEN__ || LOCAL_TOKEN;
-        const res = await fetch(LOCAL_URL + `/checkpoints/${encodeURIComponent(nodeId)}`, { method: 'GET', headers: token ? { 'x-local-token': token } : {} });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return await res.json();
-      },
-      async rollbackNode(nodeId){
-        return await jsonFetch(`/nodes/${encodeURIComponent(nodeId)}/rollback`, {}, 'POST');
-      },
+    async uploadAttachment(file, conversationId = null){
+      // file: File object (browser). Convert to base64 and POST to /upload
+      function fileToBase64(f){
+        return new Promise((resolve,reject)=>{
+          const reader = new FileReader();
+          reader.onload = () => {
+            const s = reader.result || '';
+            // data:<type>;base64,<b64>
+            const parts = String(s).split(',');
+            resolve(parts.length>1?parts[1]:parts[0]);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(f);
+        });
+      }
+      const b64 = await fileToBase64(file);
+      return await jsonFetch('/upload', { conversationId, filename: file.name, contentBase64: b64, contentType: file.type || 'application/octet-stream' }, 'POST');
+    },
+    async getAttachmentMeta(attachmentId){
+      return await jsonFetch(`/attachments/${attachmentId}/meta`, {}, 'GET');
+    },
+    async downloadAttachment(attachmentId){
+      const token = (typeof localStorage !== 'undefined' && localStorage.getItem('adhd4_local_ai_token')) || window.__AI_FORGE_LOCAL_TOKEN__ || LOCAL_TOKEN;
+      const res = await fetch(LOCAL_URL + `/download/${attachmentId}`, { method: 'GET', headers: token ? { 'x-local-token': token } : {} });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.blob();
+    },
+    async listAllAttachments(){
+      return await jsonFetch('/attachments', {}, 'GET');
+    },
+    async addAttachmentTag(attachmentId, tag){
+      return await jsonFetch(`/attachments/${attachmentId}/tags`, { tag }, 'POST');
+    },
+    async removeAttachmentTag(attachmentId, tag){
+      const token = (typeof localStorage !== 'undefined' && localStorage.getItem('adhd4_local_ai_token')) || window.__AI_FORGE_LOCAL_TOKEN__ || LOCAL_TOKEN;
+      const encoded = encodeURIComponent(String(tag));
+      const res = await fetch(LOCAL_URL + `/attachments/${attachmentId}/tags/${encoded}`, { method: 'DELETE', headers: token ? { 'x-local-token': token } : {} });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    },
+    async renameAttachment(attachmentId, filename){
+      return await jsonFetch(`/attachments/${attachmentId}/rename`, { filename }, 'POST');
+    },
+    async deleteAttachment(attachmentId){
+      const token = (typeof localStorage !== 'undefined' && localStorage.getItem('adhd4_local_ai_token')) || window.__AI_FORGE_LOCAL_TOKEN__ || LOCAL_TOKEN;
+      const res = await fetch(LOCAL_URL + `/attachments/${attachmentId}`, { method: 'DELETE', headers: token ? { 'x-local-token': token } : {} });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    },
+    async moveAttachment(attachmentId, destName){
+      return await jsonFetch(`/attachments/${attachmentId}/move`, { destName }, 'POST');
+    },
+    async compareAttachments(idA, idB){
+      return await jsonFetch('/attachments/compare', { idA, idB }, 'POST');
+    },
+    async repairAttachment(attachmentId, opts = { apply: false }){
+      return await jsonFetch(`/attachments/${attachmentId}/repair`, opts, 'POST');
+    },
+    async listCheckpoints(){
+      return await jsonFetch('/checkpoints', {}, 'GET');
+    },
+    async getCheckpoint(nodeId){
+      const token = (typeof localStorage !== 'undefined' && localStorage.getItem('adhd4_local_ai_token')) || window.__AI_FORGE_LOCAL_TOKEN__ || LOCAL_TOKEN;
+      const res = await fetch(LOCAL_URL + `/checkpoints/${encodeURIComponent(nodeId)}`, { method: 'GET', headers: token ? { 'x-local-token': token } : {} });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    },
+    async rollbackNode(nodeId){
+      return await jsonFetch(`/nodes/${encodeURIComponent(nodeId)}/rollback`, {}, 'POST');
+    },
     async executeNode(graph, nodeId, opts = {}){
       return await jsonFetch('/execute-node', { graph, nodeId, options: opts }, 'POST');
     },
