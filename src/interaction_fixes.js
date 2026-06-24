@@ -31,6 +31,18 @@ LAST_STABILIZED: 2026-06-24
     if(typeof globalThis!=='undefined') globalThis[name]=wrapped;
   }
 
+  function getTasksList(){
+    try{return typeof tasks!=='undefined'?tasks:(window.tasks||[]);}catch(_){return window.tasks||[];}
+  }
+
+  function getPlannerDumps(){
+    try{return typeof plannerDayDumps!=='undefined'?plannerDayDumps:(window.plannerDayDumps||{});}catch(_){return window.plannerDayDumps||{};}
+  }
+
+  function getTheme(){
+    try{return typeof T!=='undefined'?T:(window.T||{});}catch(_){return window.T||{};}
+  }
+
   function repairFocusInteractions(){
     moveTaskRowDragToGrip();
     decoratePlannerMonthCells();
@@ -73,8 +85,8 @@ LAST_STABILIZED: 2026-06-24
   }
 
   function plannerDayPreviewText(ymd){
-    const dumps=(window.plannerDayDumps&&window.plannerDayDumps[ymd]||[]).filter(x=>!x.done).map(x=>x.text);
-    const scheduled=(window.tasks||[]).filter(t=>t.ts&&(t.status||'todo')!=='done').map(t=>`${t.ts} ${t.text}`);
+    const dumps=((getPlannerDumps()[ymd])||[]).filter(x=>!x.done).map(x=>x.text);
+    const scheduled=getTasksList().filter(t=>t.ts&&(t.status||'todo')!=='done').map(t=>`${t.ts} ${t.text}`);
     const lines=[...scheduled,...dumps];
     return lines.length?lines.join('\n'):'No tasks captured for this day yet.';
   }
@@ -88,7 +100,7 @@ LAST_STABILIZED: 2026-06-24
       preview.style.cssText='position:fixed;z-index:9000;max-width:280px;padding:10px 12px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.25);pointer-events:none;font-family:Syne,sans-serif;font-size:12px;line-height:1.35;';
       document.body.appendChild(preview);
     }
-    const theme=window.T||{};
+    const theme=getTheme();
     preview.style.background=theme.surface||'#fff';
     preview.style.color=theme.text||'#111';
     preview.style.border=`1.5px solid ${theme.border2||'#ccd'}`;
@@ -114,8 +126,8 @@ LAST_STABILIZED: 2026-06-24
 
   function robustDeleteTask(taskId){
     try{
-      if(typeof window.tasks==='undefined'&&typeof tasks==='undefined') return;
-      const list=typeof tasks!=='undefined'?tasks:window.tasks;
+      const list=getTasksList();
+      if(!Array.isArray(list)) return;
       const before=list.length;
       const next=list.filter(t=>t.id!==taskId);
       if(typeof tasks!=='undefined') tasks=next;
