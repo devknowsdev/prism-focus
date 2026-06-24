@@ -4,6 +4,8 @@ Last-Updated: 2026-06-24
 
 This guide explains the safe first-run path for `prism-focus`. It matches the in-app setup guide added in `src/setup.js`.
 
+For install, backup, restore, audio, and PWA verification details, see [INSTALL_AND_BACKUP_CHECKLIST.md](INSTALL_AND_BACKUP_CHECKLIST.md).
+
 ## What prism-focus is
 
 `prism-focus` is a local-first planning and task dashboard. It is designed to open quickly without accounts, servers, or build steps.
@@ -94,18 +96,22 @@ Then run Ollama and test the connection from Settings.
 
 ## PWA / install-to-home-screen status
 
-No PWA/service-worker install path was verified in the Suite-Setup-001 audit. Do not claim installability until a dedicated PWA check confirms:
+No PWA/service-worker install path is currently verified.
+
+Do not claim installability or offline-readiness until a dedicated PWA check confirms:
 
 - manifest exists
-- service worker behavior is safe
+- service worker behavior is safe and reversible
 - offline cache does not preserve stale risky files
 - backup/export warnings are still visible
-- audio/localStorage caveats are still visible
+- audio/localStorage/IndexedDB caveats are still visible
+
+Current verification details are tracked in [INSTALL_AND_BACKUP_CHECKLIST.md](INSTALL_AND_BACKUP_CHECKLIST.md).
 
 Recommended future PR:
 
 ```text
-Focus-Setup-002 — PWA/install-to-home-screen verification
+Focus-Setup-003 — add and verify optional PWA/install behavior
 ```
 
 ## Cross-app safety
@@ -140,7 +146,9 @@ Manual checks:
 5. Click the compass header button and confirm the guide reopens.
 6. Confirm the local-server command copy button works where clipboard access is available.
 7. Confirm Settings → AI still opens.
+8. Confirm **Day Log → Export → Backup (JSON)** is still discoverable.
+9. Confirm no PWA/install claim appears unless future install behavior is implemented.
 
 ## What future prompts can omit
 
-Future prompts can reference this file instead of restating the basic Focus launch modes, storage caveats, backup path, optional-AI caution, and no-hidden-import boundary.
+Future prompts can reference this file instead of restating the basic Focus launch modes, storage caveats, backup path, optional-AI caution, no-hidden-import boundary, and current PWA status.
