@@ -161,8 +161,46 @@ LAST_STABILIZED: 2026-06-24
     }catch(error){console.warn('deleteTask error',error);}
   }
 
+  function robustStopAndSaveTimer(saveDirect){
+    try{
+      if(typeof timerRunning!=='undefined') timerRunning=false;
+      if(typeof timerInterval!=='undefined'&&timerInterval&&typeof clearInterval==='function') clearInterval(timerInterval);
+      if(typeof timerInterval!=='undefined') timerInterval=null;
+      if(typeof activeSession==='undefined'||!activeSession){ if(typeof render==='function') render(); return; }
+      const startedAt=activeSession.startedAt||Date.now();
+      const wallElapsed=Math.max(0,Math.floor((Date.now()-startedAt)/1000));
+      let timerDerived=wallElapsed;
+      if(activeSession.mode==='countdown'){
+        const planned=(typeof timerPlannedSecs!=='undefined'&&timerPlannedSecs)?timerPlannedSecs:((typeof timerCountdownMins!=='undefined'&&timerCountdownMins?timerCountdownMins:25)*60);
+        const remaining=(typeof timerSecs==='number')?timerSecs:planned;
+        timerDerived=Math.max(0,planned-remaining);
+      }else if(typeof timerSecs==='number'){
+        timerDerived=timerSecs;
+      }
+      const secs=Math.max(1,wallElapsed,Math.floor(timerDerived||0));
+      const session={id:Date.now(),taskId:activeSession.taskId,subtaskId:activeSession.subtaskId||null,startedAt,endedAt:startedAt+secs*1000,seconds:secs,mode:activeSession.mode||'auto',type:activeSession.type||'work'};
+      if(saveDirect){
+        if(typeof timeSessions!=='undefined') timeSessions.push(session);
+        activeSession=null;
+        if(typeof showQuickLog!=='undefined') showQuickLog=false;
+        if(typeof quickLogTaskId!=='undefined') quickLogTaskId=null;
+        if(typeof save==='function') save();
+      }else{
+        if(typeof showQuickLog!=='undefined') showQuickLog=true;
+        if(typeof quickLogTaskId!=='undefined') quickLogTaskId=activeSession.taskId;
+        if(typeof quickLogSecs!=='undefined') quickLogSecs=secs;
+        if(typeof quickLogStartedAt!=='undefined') quickLogStartedAt=startedAt;
+      }
+      if(typeof render==='function') render();
+    }catch(error){console.warn('stopAndSaveTimer error',error);}
+  }
+
   window.deleteTask=robustDeleteTask;
-  if(typeof globalThis!=='undefined') globalThis.deleteTask=robustDeleteTask;
+  window.stopAndSaveTimer=robustStopAndSaveTimer;
+  if(typeof globalThis!=='undefined'){
+    globalThis.deleteTask=robustDeleteTask;
+    globalThis.stopAndSaveTimer=robustStopAndSaveTimer;
+  }
   window.repairFocusInteractions=repairFocusInteractions;
   window.hidePlannerDayPreview=hidePlannerDayPreview;
 
