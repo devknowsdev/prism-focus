@@ -10,6 +10,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
       - name: Check markdown formatting
         shell: bash
         run: |
@@ -36,3 +39,9 @@ for idx, line in enumerate(raw.decode('utf-8').splitlines(), start=1):
 print(f"ok {path}")
 PY
           done
+      - name: Check setup JavaScript syntax
+        run: |
+          node --check src/setup.js
+          node --check src/state.js
+          node --check src/render.js
+          node --check src/init.js
