@@ -11,8 +11,6 @@ LAST_STABILIZED: 2026-06-25
 
   const legacyAiCall = window.aiCall;
   const legacyAiCallJson = window.aiCallJson;
-  const legacyDumpAiDailyPlan = window.dumpAiDailyPlan;
-  const legacyDumpAiInterpret = window.dumpAiInterpret;
 
   function _hasSpectraAi() {
     return typeof window !== 'undefined'
@@ -121,7 +119,7 @@ LAST_STABILIZED: 2026-06-25
     const parsed = _parseJsonFromText(raw);
     if (parsed !== null) return parsed;
     if (!_legacyFallbackEnabled() || typeof legacyAiCallJson !== 'function') return null;
-    return null;
+    return await legacyAiCallJson(systemPrompt, userPrompt, opts);
   };
 
   window.dumpAiDailyPlan = async function dumpAiDailyPlanSpectraFirst() {
