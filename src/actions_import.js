@@ -34,6 +34,7 @@ function epkImportReset(){
   epkImportPacket=null;
   epkImportSelectedTaskIds=new Set();
   epkImportError='';
+  if(typeof _blurForRender==='function') _blurForRender('epk-import-json');
   render();
 }
 
@@ -42,6 +43,7 @@ function epkImportSetRaw(value){
 }
 
 function epkImportLoadFromText(){
+  if(typeof _blurForRender==='function') _blurForRender('epk-import-json');
   epkImportError='';
   let packet=null;
   try{
