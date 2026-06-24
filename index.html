@@ -60,6 +60,36 @@
         border-color: #1d5fa8 !important;
       }
 
+      /* UI stability pass — avoid selected/hover state layout and colour jumps. */
+      *, *::before, *::after {
+        box-sizing: border-box;
+      }
+
+      [data-task-id] > div:first-child {
+        background: transparent !important;
+        transition: border-color 0.15s, box-shadow 0.15s !important;
+      }
+
+      [data-task-id] > div:first-child:hover {
+        background: transparent !important;
+      }
+
+      [data-task-id] > div:first-child > div[onclick^="setFocus"] > div:first-child {
+        font-weight: 500 !important;
+        letter-spacing: 0.002em;
+      }
+
+      .cat-tabs button,
+      .task-sort-row button,
+      .task-sort-row select {
+        min-height: 28px;
+        line-height: 1.2;
+      }
+
+      .cat-tabs button {
+        justify-content: center;
+      }
+
 
       /* ── Mobile responsive ─────────────────────────────────────────── */
 
