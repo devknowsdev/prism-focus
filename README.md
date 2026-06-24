@@ -1,5 +1,5 @@
 # ---
-Last-Updated: 2026-06-22
+Last-Updated: 2026-06-24
 
 # ADHDashboard
 
@@ -18,6 +18,7 @@ Local-first productivity dashboard designed for ADHD and autism-friendly workflo
 - **Day Log** — time summaries, off-task log, backup/restore
 - **Habits** — daily task tracking with hit grid
 - **Music Tools** — metronome, tuner, task music metadata
+- **First-run guide** — calm launch, backup, storage, and optional-AI setup reminders
 - **AI (optional)** — Ollama (local) or Claude for NL task parse, wizard prompts, breakdowns, and weekly nudges; degrades gracefully when off
 
 ## Quick start
@@ -31,8 +32,19 @@ Local-first productivity dashboard designed for ADHD and autism-friendly workflo
    ```
 
 3. Use the app. Data persists automatically in `localStorage`.
+4. Read the first-run setup guide when it appears. You can reopen it later from the compass button in the header.
 
-See [web/README.md](web/README.md) for browser vs. local-server notes.
+See [web/README.md](web/README.md) for browser vs. local-server notes and [docs/FIRST_RUN_SETUP.md](docs/FIRST_RUN_SETUP.md) for the full first-run setup path.
+
+### First-run setup
+
+The app includes an informational first-run guide. It does not import, publish, sync, or mutate tasks. It explains:
+
+- safe ways to open the app
+- where task/settings/audio data lives
+- how to make an early JSON backup
+- why AI is optional and default-off
+- why future cross-app imports must be reviewed before they change Focus data
 
 ### Optional AI
 
@@ -94,6 +106,7 @@ index.html          Entry point; loads scripts in fixed order
 vendor/             Vendored Tabler icons + fonts (offline / Pages)
 src/
   state.js          All mutable global state
+  setup.js          First-run setup guide; informational only
   ai.js             Optional AI layer (Ollama / Claude)
   storage.js        localStorage load/save
   render*.js        Widget HTML renderers

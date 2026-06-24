@@ -110,6 +110,9 @@ let showWarnings=true; // tasks widget: show/hide risk badges + resolution promp
 // Crisis / focus-mode overlay
 let crisisMode=false; // MIGRATED TO state/uiState.js (pending removal)
 
+// First-run setup guide
+let showFocusSetupModal=false; // informational setup modal; does not mutate task data
+
 // Idle prompt ("Been busy?")
 let idlePromptShown=false;        // true once the modal is visible // MIGRATED TO state/uiState.js (pending removal)
 let lastInteractionAt=Date.now(); // updated on any user action // MIGRATED TO state/runtimeState.js (pending removal)

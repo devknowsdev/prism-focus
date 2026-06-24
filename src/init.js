@@ -54,6 +54,10 @@ if(typeof resetTimer === "function"){
   console.warn("resetTimer not found - skipping init step");
 }
 
+if(typeof maybeOpenFocusSetup === 'function'){
+  maybeOpenFocusSetup();
+}
+
 render();
 
 // Browser file:// hint (Electron desktop is unaffected)

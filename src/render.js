@@ -138,6 +138,10 @@ function _renderListenHeaderBtn(){
   </button>`;
 }
 
+function _renderSetupHeaderBtn(){
+  return `<button onclick="openFocusSetup()" title="Setup guide" style="${btnStyle('default','padding:5px 9px;font-size:14px;border-radius:8px;')}"><i class="ti ti-compass"></i></button>`;
+}
+
 // ── Debounced render — batches rapid consecutive render() calls ───────────────
 let _renderTimer=null;
 function render(){
@@ -227,6 +231,7 @@ function _doRender(){
     <div style="font-size:16px;font-weight:600;color:${T.accent}">focus<span style="color:${T.accent2}">.</span></div>
     <div style="display:flex;align-items:center;gap:10px;">
       <span class="header-date" style="font-size:11px;color:${T.muted};">${dateStr}</span>
+      ${_renderSetupHeaderBtn()}
       ${_renderWizardHeaderBtn(now)}
       ${_renderAiHeaderBtn()}
       ${_renderChatHeaderBtn()}
@@ -246,6 +251,7 @@ function _doRender(){
   </div>`:''}
   ${showCatModal?renderCatModalHtml():''}
   ${showSettingsModal?renderSettingsModalHtml():''}
+  ${showFocusSetupModal?renderFocusSetupModalHtml():''}
   ${showAiAuditModal?renderAiAuditHtml():''}
   ${aiPendingInterpret?renderAiInterpretHtml():''}
   ${aiPendingSuggestion?renderAiDailyPlanHtml():''}
