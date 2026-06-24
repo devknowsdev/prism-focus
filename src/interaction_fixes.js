@@ -18,6 +18,11 @@ LAST_STABILIZED: 2026-06-24
     setTimeout(repairFocusInteractions,0);
   }
 
+  function blurActiveNoClobber(){
+    const active=document.activeElement;
+    if(active&&active.closest?.('[data-no-clobber="true"]')&&typeof active.blur==='function') active.blur();
+  }
+
   function wrapRenderFunction(name){
     const original=window[name];
     if(typeof original!=='function'||original.__interactionFixWrapped) return;
@@ -27,6 +32,20 @@ LAST_STABILIZED: 2026-06-24
       return result;
     };
     wrapped.__interactionFixWrapped=true;
+    window[name]=wrapped;
+    if(typeof globalThis!=='undefined') globalThis[name]=wrapped;
+  }
+
+  function wrapPlannerNavigation(name){
+    const original=window[name];
+    if(typeof original!=='function'||original.__plannerNoClobberWrapped) return;
+    const wrapped=function(){
+      blurActiveNoClobber();
+      const result=original.apply(this,arguments);
+      afterRender();
+      return result;
+    };
+    wrapped.__plannerNoClobberWrapped=true;
     window[name]=wrapped;
     if(typeof globalThis!=='undefined') globalThis[name]=wrapped;
   }
@@ -149,5 +168,9 @@ LAST_STABILIZED: 2026-06-24
 
   wrapRenderFunction('render');
   wrapRenderFunction('renderNow');
+  wrapPlannerNavigation('plannerOpenTimeline');
+  wrapPlannerNavigation('plannerOpenDump');
+  wrapPlannerNavigation('plannerGoToMonth');
+  wrapPlannerNavigation('plannerSelectDate');
   document.addEventListener('DOMContentLoaded',afterRender);
 })();
