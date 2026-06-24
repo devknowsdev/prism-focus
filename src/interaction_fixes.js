@@ -195,6 +195,15 @@ LAST_STABILIZED: 2026-06-24
     }catch(error){console.warn('stopAndSaveTimer error',error);}
   }
 
+  function loadKeyboardCommands(){
+    if(document.querySelector('script[data-focus-keyboard="true"]')||window.focusKeyboardUndo)return;
+    const script=document.createElement('script');
+    script.src='./src/keyboard_commands.js';
+    script.dataset.focusKeyboard='true';
+    script.defer=true;
+    document.head.appendChild(script);
+  }
+
   window.deleteTask=robustDeleteTask;
   window.stopAndSaveTimer=robustStopAndSaveTimer;
   if(typeof globalThis!=='undefined'){
@@ -211,4 +220,5 @@ LAST_STABILIZED: 2026-06-24
   wrapPlannerNavigation('plannerGoToMonth');
   wrapPlannerNavigation('plannerSelectDate');
   document.addEventListener('DOMContentLoaded',afterRender);
+  document.addEventListener('DOMContentLoaded',loadKeyboardCommands);
 })();
