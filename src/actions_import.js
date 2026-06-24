@@ -11,6 +11,12 @@ INVARIANTS: never imports without explicit review click; never reads remote sour
 LAST_STABILIZED: 2026-06-24
 */
 
+let showEpkImportModal=false;
+let epkImportRaw='';
+let epkImportPacket=null;
+let epkImportSelectedTaskIds=new Set();
+let epkImportError='';
+
 function openEpkImport(){
   showEpkImportModal=true;
   epkImportError='';
@@ -104,7 +110,6 @@ function epkImportApproveSelected(){
   selected.forEach(({task,idx})=>{
     const sourceId=String(task.sourceId||`${epkImportPacket.source.recordId||'epk'}:${idx}`);
     if(existingSources.has(sourceId)) return;
-    const dueDate=String(task.dueDate||'').trim();
     const focusTask={
       id:importedAt+idx,
       text:String(task.title||'').trim(),
