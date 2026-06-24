@@ -107,25 +107,26 @@ function renderHabitsWidget(todayStr, now){
     const popover=isOpen?`
       <div onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:7px 10px;margin-top:6px;background:${T.surface3};border:1.5px solid ${T.border2};border-radius:10px;" data-no-clobber="true">
         <input type="time" value="${hitInputTime}"
+          oninput="hitInputTime=this.value"
           onchange="hitInputTime=this.value"
           style="${inputStyle('width:110px;font-size:12px;padding:4px 7px;display:inline-block;width:auto;')}"/>
         <div style="display:flex;align-items:center;gap:3px;">
-          <button onclick="adjustHitMins(${h.id},-5)" style="${btnStyle('default','font-size:11px;padding:3px 7px;')}">−5m</button>
+          <button type="button" onclick="event.preventDefault();event.stopPropagation();adjustHitMins(${h.id},-5)" style="${btnStyle('default','font-size:11px;padding:3px 7px;')}">−5m</button>
           <input id="hit-mins-num-${h.id}" type="number" min="0" max="480" value="${hitInputMins||''}"
             placeholder="0"
             oninput="setHitInputMins(${h.id},this.value)"
             style="${inputStyle('width:52px;text-align:center;font-size:12px;padding:4px 6px;font-family:DM Mono,monospace;display:inline-block;width:auto;')}"/>
           <span id="hit-mins-display-${h.id}" style="font-size:11px;color:${T.muted2};font-family:'DM Mono',monospace;min-width:26px;">${hitInputMins||0}m</span>
-          <button onclick="adjustHitMins(${h.id},5)" style="${btnStyle('default','font-size:11px;padding:3px 7px;')}">+5m</button>
+          <button type="button" onclick="event.preventDefault();event.stopPropagation();adjustHitMins(${h.id},5)" style="${btnStyle('default','font-size:11px;padding:3px 7px;')}">+5m</button>
         </div>
-        <button onclick="saveHabitHit(${h.id})" style="${btnStyle('accent','font-size:11px;padding:4px 10px;')}"><i class="ti ti-check"></i> Log</button>
-        <button onclick="closeHitInput()" style="${btnStyle('default','font-size:11px;padding:4px 8px;')}"><i class="ti ti-x"></i></button>
+        <button type="button" onclick="event.preventDefault();event.stopPropagation();saveHabitHit(${h.id})" style="${btnStyle('accent','font-size:11px;padding:4px 10px;')}"><i class="ti ti-check"></i> Log</button>
+        <button type="button" onclick="event.preventDefault();event.stopPropagation();closeHitInput()" style="${btnStyle('default','font-size:11px;padding:4px 8px;')}"><i class="ti ti-x"></i></button>
       </div>`:'';
 
     return `<div style="padding:8px 6px;border-bottom:1.5px solid ${T.border};border-left:3px solid ${doneToday?(cat?cat.color.dot:T.accent):T.border};background:${T.surface};">
       <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">
         <!-- Done indicator / log button -->
-        <button onclick="openHitInput(${h.id})"
+        <button type="button" onclick="event.preventDefault();event.stopPropagation();openHitInput(${h.id})"
           title="${doneToday?'Log another hit':'Mark done for today'}"
           style="width:22px;height:22px;border-radius:50%;border:2px solid ${doneToday?(cat?cat.color.dot:T.green):T.border2};background:${doneToday?(cat?cat.color.dot:T.green):'transparent'};color:${doneToday?'#fff':T.muted2};cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;padding:0;transition:all .15s;">
           ${doneToday?'<i class="ti ti-check"></i>':'<i class="ti ti-plus"></i>'}
