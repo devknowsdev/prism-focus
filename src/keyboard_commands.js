@@ -156,7 +156,6 @@ LAST_STABILIZED: 2026-06-24
   function confirmDeleteSelected(){
     const taskId=pendingDeleteTaskId;
     if(taskId==null)return;
-    recordUndoPoint();
     pendingDeleteTaskId=null;
     closeDeleteConfirm();
     if(typeof deleteTask==='function') deleteTask(taskId);
@@ -273,7 +272,8 @@ LAST_STABILIZED: 2026-06-24
   }
 
   document.addEventListener('keydown',handleKeydown,true);
-  document.addEventListener('DOMContentLoaded',bootKeyboardCommands);
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',bootKeyboardCommands);
+  else bootKeyboardCommands();
   window.focusKeyboardSelectTask=focusKeyboardSelectTask;
   window.focusKeyboardUndo=focusKeyboardUndo;
   window.focusKeyboardRedo=focusKeyboardRedo;
