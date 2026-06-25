@@ -90,16 +90,15 @@
         justify-content: center;
       }
 
-      /* Planner calendar detail: click-selected only; hover is only a light orientation cue. */
+      /* Planner calendar detail: click-selected only; hover is only a clear outline cue. */
       .planner-day-cell {
         position: relative;
-        transition: box-shadow 0.12s, outline-color 0.12s, transform 0.12s;
+        transition: outline-color 0.12s;
       }
 
       .planner-day-cell:hover {
-        outline: 2px solid rgba(29,95,168,0.34);
+        outline: 2px solid rgba(29,95,168,0.55);
         outline-offset: -2px;
-        box-shadow: inset 0 0 0 999px rgba(255,255,255,0.035);
       }
 
       .planner-day-cell .planner-day-detail {
