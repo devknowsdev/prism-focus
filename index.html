@@ -90,13 +90,20 @@
         justify-content: center;
       }
 
-      /* Planner calendar hover: one custom detail box, no sticky JS state. */
+      /* Planner calendar detail: click-selected only; hover is only a light orientation cue. */
       .planner-day-cell {
         position: relative;
+        transition: box-shadow 0.12s, outline-color 0.12s, transform 0.12s;
+      }
+
+      .planner-day-cell:hover {
+        outline: 2px solid rgba(29,95,168,0.34);
+        outline-offset: -2px;
+        box-shadow: inset 0 0 0 999px rgba(255,255,255,0.035);
       }
 
       .planner-day-cell .planner-day-detail {
-        display: none;
+        display: block;
         position: absolute;
         left: 6px;
         right: 6px;
@@ -108,11 +115,6 @@
         padding: 7px 8px;
         pointer-events: none;
         min-width: 160px;
-      }
-
-      .planner-day-cell:hover .planner-day-detail,
-      .planner-day-cell:focus-within .planner-day-detail {
-        display: block;
       }
 
       .planner-day-cell:nth-child(n+6) .planner-day-detail {
@@ -217,6 +219,7 @@
     <script src="./src/render_daylog.js"></script>
     <script src="./src/actions_planner.js"></script>
     <script src="./src/render_planner.js"></script>
+    <script src="./src/planner_calendar_click_fixes.js"></script>
     <script src="./src/actions_wizard.js"></script>
     <script src="./src/render_wizard.js"></script>
     <script src="./src/actions.js"></script>
