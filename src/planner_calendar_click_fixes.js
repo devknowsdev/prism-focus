@@ -72,7 +72,7 @@ INVARIANTS: render-only override; no persistence writes; no planner data mutatio
         }).join('');
         const detailMore=scheduledTasks.length>5?`<div style="font-size:9px;color:${T.muted2};margin-top:2px;">+${scheduledTasks.length-5} more scheduled</div>`:'';
         const detailEmpty=(!scheduledTasks.length&&!dumpCount)?`<div style="font-size:10px;color:${T.muted2};">No scheduled items or captures.</div>`:'';
-        const detail=isSelected?`<div class="planner-day-detail" style="background:${bg};color:${T.text};">
+        const detail=isSelected?`<div class="planner-day-detail" style="background:${T.surface};color:${T.text};">
           <div style="font-size:11px;font-weight:800;color:${isToday?T.accent:T.text};margin-bottom:4px;">${esc(_plannerDateLabel(ymd))}</div>
           ${detailTasks}${detailMore}
           ${dumpCount?`<div style="font-size:10px;color:${T.accent2};margin-top:4px;font-weight:700;">${dumpCount} open capture${dumpCount===1?'':'s'}</div>`:''}
