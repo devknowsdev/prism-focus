@@ -30,6 +30,18 @@ INVARIANTS: render-only override; no persistence writes; no planner data mutatio
     render();
   }
 
+  function plannerCloseMonthDetail(){
+    if(plannerView!=='month'||!plannerSelectedDate) return false;
+    plannerSelectedDate=null;
+    render();
+    return true;
+  }
+
+  function isTextEditingTarget(target){
+    if(!target||!target.closest) return false;
+    return !!target.closest('input, textarea, select, [contenteditable="true"]');
+  }
+
   function renderPlannerCalendarMonthClick(){
     const today=new Date();
     const todayYmd2=dateToYMD(today);
@@ -83,7 +95,7 @@ INVARIANTS: render-only override; no persistence writes; no planner data mutatio
           ${detailTasks}${detailMore}
           ${dumpCount?`<div style="font-size:10px;color:${T.accent2};margin-top:4px;font-weight:700;">${dumpCount} open capture${dumpCount===1?'':'s'}</div>`:''}
           ${detailEmpty}
-          <div style="font-size:9px;color:${T.muted2};margin-top:5px;">Click again = day view · double-click = day view</div>
+          <div style="font-size:9px;color:${T.muted2};margin-top:5px;">Click again = day view · Backspace = close</div>
         </div>`:'';
         return `<td class="planner-day-cell" tabindex="0" onclick="plannerMonthCellClick('${ymd}')" ondblclick="event.stopPropagation();plannerOpenTimeline('${ymd}')"
           aria-label="${esc(_plannerDateLabel(ymd))}"
@@ -109,7 +121,7 @@ INVARIANTS: render-only override; no persistence writes; no planner data mutatio
         <div style="flex:1;text-align:center;font-size:13px;font-weight:700;color:${T.text};">${MONTH_NAMES[month]} ${year}</div>
         <button onclick="plannerNavMonth(1)" style="${btnStyle('default','font-size:11px;padding:3px 8px;')}"><i class="ti ti-chevron-right"></i></button>
       </div>
-      <div style="padding:2px 8px 2px;background:${T.surface};border-bottom:1px solid ${T.border};font-size:9px;color:${T.muted2};">Click once = details · click same day again = day view</div>
+      <div style="padding:2px 8px 2px;background:${T.surface};border-bottom:1px solid ${T.border};font-size:9px;color:${T.muted2};">Click once = details · click same day again = day view · Backspace = close details</div>
       <div style="overflow-x:auto;background:${T.surface};padding-bottom:80px;">
         <table style="width:100%;border-collapse:collapse;min-width:280px;table-layout:fixed;">
           <thead><tr>${headerCells}</tr></thead>
@@ -119,9 +131,23 @@ INVARIANTS: render-only override; no persistence writes; no planner data mutatio
   }
 
   root.plannerMonthCellClick=plannerMonthCellClick;
+  root.plannerCloseMonthDetail=plannerCloseMonthDetail;
   root._renderPlannerMonth=renderPlannerCalendarMonthClick;
+
+  if(root.addEventListener){
+    root.addEventListener('keydown',function(event){
+      if(event.key!=='Backspace') return;
+      if(isTextEditingTarget(event.target)) return;
+      if(plannerCloseMonthDetail()){
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    },true);
+  }
+
   if(typeof globalThis!=='undefined'){
     globalThis.plannerMonthCellClick=plannerMonthCellClick;
+    globalThis.plannerCloseMonthDetail=plannerCloseMonthDetail;
     globalThis._renderPlannerMonth=renderPlannerCalendarMonthClick;
   }
 })();
