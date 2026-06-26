@@ -12,6 +12,7 @@ LAST_STABILIZED: 2026-06-27
   const SPECTRA_BRANCH = 'spectra-focus-ai-init-20260627';
   const GATEWAY_COMMAND = 'cd ~/Desktop\nif [ ! -d prism-spectra ]; then git clone https://github.com/devknowsdev/prism-spectra.git; fi\ncd prism-spectra\ngit fetch origin\ngit checkout ' + SPECTRA_BRANCH + '\nnpm install\nAI_FORGE_AI_GATEWAY_TOKEN="dev-local-token" npm run ai:gateway';
   const REAL_OLLAMA_GATEWAY_COMMAND = 'cd ~/Desktop\nif [ ! -d prism-spectra ]; then git clone https://github.com/devknowsdev/prism-spectra.git; fi\ncd prism-spectra\ngit fetch origin\ngit checkout ' + SPECTRA_BRANCH + '\nnpm install\nAI_FORGE_AI_GATEWAY_TOKEN="dev-local-token" AI_FORGE_MOCK_EXECUTORS=0 npm run ai:gateway';
+  const OLLAMA_CHECK_COMMAND = 'ollama list\nollama pull qwen3:9b\nollama serve';
 
   function _esc(value) {
     if (typeof esc === 'function') return esc(String(value ?? ''));
@@ -22,9 +23,7 @@ LAST_STABILIZED: 2026-06-27
     if (typeof aiSettings === 'undefined' || !aiSettings) return;
     if (aiSettings.spectraEnabled == null) aiSettings.spectraEnabled = true;
     if (aiSettings.legacyProviderFallback == null) aiSettings.legacyProviderFallback = true;
-    if (typeof aiStatus !== 'undefined' && aiStatus && aiStatus.spectra == null) {
-      aiStatus.spectra = 'unknown';
-    }
+    if (typeof aiStatus !== 'undefined' && aiStatus && aiStatus.spectra == null) aiStatus.spectra = 'unknown';
   }
 
   function _loadSavedSpectraSettings() {
@@ -70,14 +69,22 @@ LAST_STABILIZED: 2026-06-27
   }
 
   function _tokenForDisplay() {
-    if (!_hasSavedToken()) return DEFAULT_SPECTRA_TOKEN;
-    return 'saved locally';
+    return _hasSavedToken() ? 'saved locally' : DEFAULT_SPECTRA_TOKEN;
+  }
+
+  function _friendlyError(raw, phase) {
+    const text = String(raw || '').slice(0, 500);
+    if (/401|403|token|unauthor/i.test(text)) return 'Token mismatch. Use dev defaults, or copy the token printed by Spectra into Focus.';
+    if (/Ollama call failed|fetch failed|ECONNREFUSED|11434/i.test(text)) return 'Spectra is running, but Ollama did not answer. Start Ollama, confirm the model is installed, or switch back to mock mode.';
+    if (/Failed to fetch|NetworkError|gateway/i.test(text) && phase === 'health') return 'Focus cannot reach Spectra. Start the Spectra gateway and keep that terminal window open.';
+    if (/HTTP 500/i.test(text)) return 'Spectra is running, but the selected AI provider failed. Check Ollama/provider setup or use mock mode to test the bridge.';
+    return text || 'Unknown AI setup error.';
   }
 
   function _setGatewayStatus(status, detail) {
     if (typeof aiStatus === 'undefined' || !aiStatus) return;
     aiStatus.spectra = status;
-    if (detail) aiStatus.spectraError = String(detail).slice(0, 240);
+    if (detail) aiStatus.spectraError = _friendlyError(detail, status === 'gateway-error' ? 'health' : 'request');
     else delete aiStatus.spectraError;
   }
 
@@ -159,24 +166,30 @@ ${command}
   window.settingsTestSpectra = async function settingsTestSpectra() {
     _ensureSpectraSettings();
     if (!window.AiAdapter || typeof window.AiAdapter.health !== 'function') {
-      _setGatewayStatus('error', 'Focus adapter unavailable');
+      _setGatewayStatus('gateway-error', 'Focus adapter unavailable');
       if (typeof showToast === 'function') showToast('Spectra adapter unavailable', 'warn');
       return;
     }
 
+    let health = null;
     try {
       if (typeof showToast === 'function') showToast('Testing Spectra gateway…', 'ok');
-      const health = await window.AiAdapter.health();
-      if (!health || !health.ok || !health.available) {
-        throw new Error('gateway did not report available');
-      }
+      health = await window.AiAdapter.health();
+      if (!health || !health.ok || !health.available) throw new Error('gateway did not report available');
+    } catch (e) {
+      aiStatus.spectraService = '';
+      aiStatus.spectraMock = false;
+      _setGatewayStatus('gateway-error', e && e.message ? e.message : String(e));
+      if (typeof showToast === 'function') showToast('Spectra gateway is not reachable', 'warn');
+      if (typeof render === 'function') render();
+      return;
+    }
 
+    try {
       let requestResult = null;
       if (typeof window.AiAdapter.testAiRequest === 'function') {
         requestResult = await window.AiAdapter.testAiRequest();
-        if (!requestResult || !requestResult.ok) {
-          throw new Error((requestResult && requestResult.error) || 'AI request failed');
-        }
+        if (!requestResult || !requestResult.ok) throw new Error((requestResult && requestResult.error) || 'AI request failed');
       }
 
       aiStatus.spectra = 'ok';
@@ -190,13 +203,15 @@ ${command}
       delete aiStatus.spectraError;
 
       const provider = requestResult && requestResult.provider ? ` via ${requestResult.provider}` : '';
-      if (typeof showToast === 'function') {
-        showToast(`Spectra connected${provider}${health.mockExecutors ? ' (mock mode)' : ''}`, 'ok');
-      }
+      if (typeof showToast === 'function') showToast(`Spectra connected${provider}${health.mockExecutors ? ' (mock mode)' : ''}`, 'ok');
     } catch (e) {
-      aiStatus.spectra = 'error';
-      aiStatus.spectraError = e && e.message ? e.message : String(e);
-      if (typeof showToast === 'function') showToast('Spectra gateway test failed', 'warn');
+      aiStatus.spectraService = health.service || 'prism-spectra';
+      aiStatus.spectraMock = health.mockExecutors === true;
+      aiStatus.spectraProvider = 'ollama';
+      aiStatus.spectraModel = aiStatus.spectraModel || 'qwen3:9b';
+      aiStatus.spectraBoundary = 'local';
+      _setGatewayStatus('provider-error', e && e.message ? e.message : String(e));
+      if (typeof showToast === 'function') showToast('Spectra is running, but the AI provider failed', 'warn');
     }
 
     if (typeof render === 'function') render();
@@ -205,6 +220,8 @@ ${command}
   function _spectraStatusLabel() {
     const status = typeof aiStatus !== 'undefined' && aiStatus ? aiStatus.spectra : 'unknown';
     if (status === 'ok') return 'Connected';
+    if (status === 'gateway-error') return 'Gateway offline';
+    if (status === 'provider-error') return 'Provider failed';
     if (status === 'error') return 'Needs setup';
     return 'Not tested';
   }
@@ -212,14 +229,17 @@ ${command}
   function _spectraStatusColor() {
     const status = typeof aiStatus !== 'undefined' && aiStatus ? aiStatus.spectra : 'unknown';
     if (status === 'ok') return T.green;
-    if (status === 'error') return T.pomo;
+    if (status === 'gateway-error' || status === 'provider-error' || status === 'error') return T.pomo;
     return T.muted2;
   }
 
   function _spectraConnectionSummary() {
-    if (typeof aiStatus === 'undefined' || !aiStatus || aiStatus.spectra !== 'ok') {
+    if (typeof aiStatus === 'undefined' || !aiStatus || !aiStatus.spectra || aiStatus.spectra === 'unknown') {
       return 'AI is not connected yet. Use the setup wizard, then run Test Spectra.';
     }
+    if (aiStatus.spectra === 'gateway-error') return aiStatus.spectraError || 'Focus cannot reach Spectra. Start the gateway and keep that terminal window open.';
+    if (aiStatus.spectra === 'provider-error') return aiStatus.spectraError || 'Spectra is running, but Ollama/provider did not answer.';
+    if (aiStatus.spectra !== 'ok') return aiStatus.spectraError || 'AI setup needs attention.';
     const parts = [];
     if (aiStatus.spectraMock === true) parts.push('mock mode: setup is working, but answers are test responses');
     else parts.push('real provider mode');
@@ -270,7 +290,7 @@ ${command}
           <button onclick="settingsCopySpectraGatewayCommand(false)" style="${btnStyle('default','font-size:12px;padding:6px 10px;')}">Copy mock command</button>
           <button onclick="settingsDownloadSpectraLauncher(false)" style="${btnStyle('default','font-size:12px;padding:6px 10px;')}">Download mock launcher</button>
         </div>
-        <div style="font-size:11px;color:${T.muted};line-height:1.5;">Mock mode proves the app wiring works. It does not require Ollama and will return test-style responses.</div>
+        <div style="font-size:11px;color:${T.muted};line-height:1.5;">Mock mode proves the bridge works. It does not require Ollama and will return test-style responses.</div>
         ${_renderCodeBlock(GATEWAY_COMMAND)}
         <details style="font-size:11px;color:${T.muted};line-height:1.5;"><summary style="cursor:pointer;color:${T.text};font-weight:700;">Use real local Ollama instead</summary>
           <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">
@@ -289,7 +309,7 @@ ${command}
         </div>
         <div style="padding:10px;background:${T.surface2};border:1px solid ${T.border};border-radius:9px;font-size:12px;color:${T.muted};line-height:1.5;">
           <b style="color:${T.text};">Expected good result:</b> status says Connected, and detail shows provider/model/data boundary.<br>
-          <b style="color:${T.text};">If it says Needs setup:</b> Spectra is probably not running, token does not match, or the wrong branch is checked out.
+          <b style="color:${T.text};">Provider failed:</b> Spectra is running, but Ollama/provider is not ready. Start Ollama or return to mock mode.
         </div>
       </div>`,
       `<div>
@@ -307,7 +327,7 @@ ${command}
         <div style="display:grid;gap:8px;font-size:12px;line-height:1.5;">
           <div style="padding:9px;background:${T.surface2};border:1px solid ${T.border};border-radius:9px;"><b>Spectra unreachable</b><br><span style="color:${T.muted};">Start the gateway and keep that terminal open. The URL should be ${DEFAULT_SPECTRA_URL}.</span></div>
           <div style="padding:9px;background:${T.surface2};border:1px solid ${T.border};border-radius:9px;"><b>Invalid token</b><br><span style="color:${T.muted};">Use dev defaults, or copy the token printed by Spectra into the Token field.</span></div>
-          <div style="padding:9px;background:${T.surface2};border:1px solid ${T.border};border-radius:9px;"><b>Mock mode works but real AI does not</b><br><span style="color:${T.muted};">Start Ollama first, then run the real Ollama gateway command with AI_FORGE_MOCK_EXECUTORS=0.</span></div>
+          <div style="padding:9px;background:${T.surface2};border:1px solid ${T.border};border-radius:9px;"><b>Spectra works, provider fails</b><br><span style="color:${T.muted};">Ollama is probably not running, the model is missing, or Spectra was started in real mode before Ollama was ready.</span>${_renderCodeBlock(OLLAMA_CHECK_COMMAND)}</div>
           <div style="padding:9px;background:${T.surface2};border:1px solid ${T.border};border-radius:9px;"><b>Mac downloaded launcher will not open</b><br><span style="color:${T.muted};">macOS may block downloaded scripts. Use the copy-command button and paste into Terminal instead.</span></div>
         </div>
       </div>`
@@ -340,7 +360,7 @@ ${command}
       if (aiStatus.spectraModel) detailParts.push(`model: ${aiStatus.spectraModel}`);
       if (aiStatus.spectraBoundary) detailParts.push(`boundary: ${aiStatus.spectraBoundary}`);
       if (aiStatus.spectraMock === true) detailParts.push('mock mode');
-      if (aiStatus.spectraError) detailParts.push(`error: ${aiStatus.spectraError}`);
+      if (aiStatus.spectraError) detailParts.push(aiStatus.spectraError);
     }
     const detail = detailParts.length
       ? `<div style="font-size:10px;color:${T.muted2};margin-top:6px;line-height:1.45;">${_esc(detailParts.join(' · '))}</div>`
@@ -375,18 +395,12 @@ ${command}
 
         <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap;">
           <span style="font-size:11px;color:${T.muted};width:42px;">URL:</span>
-          <input type="text" value="${_esc(_localUrlValue())}"
-            onchange="settingsSaveLocalAiUrl(this.value)"
-            style="${inputStyle('flex:1;min-width:160px;font-size:11px;')}"/>
+          <input type="text" value="${_esc(_localUrlValue())}" onchange="settingsSaveLocalAiUrl(this.value)" style="${inputStyle('flex:1;min-width:160px;font-size:11px;')}"/>
         </div>
 
         <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap;">
           <span style="font-size:11px;color:${T.muted};width:42px;">Token:</span>
-          <input type="password"
-            value=""
-            placeholder="${_esc(_tokenForDisplay())}"
-            onchange="settingsSaveLocalAiToken(this.value)"
-            style="${inputStyle('flex:1;min-width:160px;font-size:11px;')}"/>
+          <input type="password" value="" placeholder="${_esc(_tokenForDisplay())}" onchange="settingsSaveLocalAiToken(this.value)" style="${inputStyle('flex:1;min-width:160px;font-size:11px;')}"/>
           <button onclick="settingsUseSpectraDevDefaults()" style="${btnStyle('default','font-size:11px;padding:4px 8px;')}">Use dev defaults</button>
           <button onclick="settingsTestSpectra()" style="${btnStyle('accent','font-size:11px;padding:4px 8px;')}">Test Spectra</button>
         </div>
