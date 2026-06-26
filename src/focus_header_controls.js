@@ -44,17 +44,17 @@ LAST_STABILIZED: 2026-06-26
   window.closeFocusHeaderMenus=closeFocusHeaderMenus;
 
   function buttonHtml(onclick,label,icon,variant='default',extraClass=''){
-    return `<button class="${extraClass}" type="button" onclick="${onclick};closeFocusHeaderMenus()" style="${btnStyle(variant,'font-size:12px;padding:7px 10px;border-radius:9px;')}"><i class="ti ${icon}"></i>${label}</button>`;
+    return `<button class="${extraClass}" type="button" onclick="${onclick};closeFocusHeaderMenus()" style="${btnStyle(variant,'font-size:12px;padding:7px 10px;border-radius:9px;')}"><i class="ti ${icon}"></i>${safeText(label)}</button>`;
   }
 
-  function topButton(label,icon,variant='default'){
-    return `${btnStyle(variant,'font-size:12px;padding:7px 11px;border-radius:999px;min-height:31px;font-weight:700;')}"><i class="ti ${icon}"></i>${label}`;
+  function topButtonStyle(variant='default'){
+    return btnStyle(variant,'font-size:12px;padding:7px 11px;border-radius:999px;min-height:31px;font-weight:700;');
   }
 
   function menuHtml(label,icon,items,note){
     if(!items.filter(Boolean).length) return '';
     return `<details class="focus-header-menu">
-      <summary style="${topButton(label,icon)}"></summary>
+      <summary style="${topButtonStyle('default')}"><i class="ti ${icon}"></i>${safeText(label)}</summary>
       <div class="focus-header-menu-panel" style="background:${T.surface};border:1.5px solid ${T.border2};">
         ${items.filter(Boolean).join('')}
         ${note?`<p class="focus-header-menu-note" style="color:${T.muted2};">${safeText(note)}</p>`:''}
@@ -67,7 +67,7 @@ LAST_STABILIZED: 2026-06-26
   }
 
   function hiddenWidgetButton(){
-    const count=Array.isArray(window.widgetLayout)?widgetLayout.filter(w=>!w.visible).length:0;
+    const count=typeof widgetLayout!=='undefined'&&Array.isArray(widgetLayout)?widgetLayout.filter(w=>!w.visible).length:0;
     if(!count||typeof openWidgetDrawer!=='function') return '';
     return buttonHtml('openWidgetDrawer()','Hidden widgets ('+count+')','ti-layout-grid-add');
   }
