@@ -6,10 +6,10 @@ OWNS: actions_export.js responsibilities
 USES: local modules
 STATE_READS: habits, state, tasks
 STATE_WRITES: a, alarms, allH, ans, blob, byCat, c, cat, catId, categories
-PUBLIC_API: addCategory, cancelEditCat, closeCatManager, confirmDeleteCat, cycleNewCatColor, exportDailyLog, exportFullBackup, importBackup, openCatManager, pickNewCatColor, saveEditCat, setCatColor
+PUBLIC_API: addCategory, cancelEditCat, closeCatManager, confirmDeleteCat, cycleNewCatColor, exportDailyLog, exportFullBackup, factoryResetWithBackupPrompt, importBackup, openCatManager, pickNewCatColor, saveEditCat, setCatColor
 DEPENDENCIES: see dependency graph
 INVARIANTS: render pure; actions mutate; helpers transform
-LAST_STABILIZED: 2026-06-21
+LAST_STABILIZED: 2026-06-26
 */
 
 // Export, import, and category management actions.
@@ -48,24 +48,60 @@ function addCategory(){
 }
 
 // ── Export / Import ───────────────────────────────────────────────────────────
-function exportFullBackup(){
+function _backupDateString(){
   const pad=n=>String(n).padStart(2,'0');
   const d=new Date();
-  const dateStr=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-  const data={
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+
+function buildFullBackupData(){
+  if(typeof saveNow==='function') saveNow();
+  return {
     tasks,categories,habits,alarms,templates,timeSessions,offTaskLog,journalEntries,energyLog,
     dailyIntentions,plannerDayDumps,dayWizardState,
     audioRecordings,widgetLayout,taskSortMode,
     dayStartHour,dayEndHour,darkMode,crisisMode,timerLayout,clockColWidth,
     focusBoardMode,focusBoardManualIds,
-    exportedAt:Date.now(),version:17,
+    exportedAt:Date.now(),version:18,
   };
+}
+
+function downloadJsonBackup(data,prefix){
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');a.href=url;a.download=`focus-dashboard-backup-${dateStr}.json`;
+  const a=document.createElement('a');a.href=url;a.download=`${prefix||'focus-dashboard-backup'}-${_backupDateString()}.json`;
   document.body.appendChild(a);a.click();document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  showToast('Backup downloaded (audio not included)','ok');
+}
+
+function exportFullBackup(){
+  downloadJsonBackup(buildFullBackupData(),'focus-dashboard-backup');
+  showToast('Backup downloaded (audio files not included)','ok');
+  return true;
+}
+
+function factoryResetWithBackupPrompt(){
+  const hasData=(tasks&&tasks.length)||(categories&&categories.length)||(habits&&habits.length)||(alarms&&alarms.length)||(templates&&templates.length)||(timeSessions&&timeSessions.length)||(journalEntries&&journalEntries.length)||(energyLog&&energyLog.length)||Object.keys(plannerDayDumps||{}).length;
+  if(hasData){
+    const exportFirst=confirm('Factory reset will erase all Focus data on this device. Download a JSON backup first?');
+    if(!exportFirst){
+      showToast('Factory reset cancelled — backup was not exported','warn');
+      return false;
+    }
+    exportFullBackup();
+  }
+  const typed=prompt('Backup export has been started. Type FACTORY RESET to erase local Focus data and restore defaults.','');
+  if(typed!=='FACTORY RESET'){
+    showToast('Factory reset cancelled','warn');
+    return false;
+  }
+  if(typeof clearFocusLocalStorage==='function') clearFocusLocalStorage();
+  else Object.keys(localStorage).forEach(key=>{if(key.startsWith('adhd4_'))localStorage.removeItem(key);});
+  load();
+  saveNow();
+  showToast('Factory reset complete — defaults restored','ok');
+  render();
+  return true;
 }
 
 function exportDailyLog(todayStr){
