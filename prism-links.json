@@ -1,0 +1,26 @@
+{
+  "schema": "prism-links.v1",
+  "preferredMode": "online",
+  "links": {
+    "epkPublisherOnline": "https://epk-3k1.pages.dev/publisher/index.html",
+    "epkPublisherLocal": "http://localhost:8095/publisher/index.html",
+    "epkPublicOnline": "https://epk-3k1.pages.dev/",
+    "epkPublicLocal": "http://localhost:8095/",
+    "focusOnline": "https://prism-focus.pages.dev/",
+    "focusLocal": "http://localhost:8080/",
+    "spectraOnline": "",
+    "spectraLocal": "",
+    "beamOnline": "https://github.com/devknowsdev/prism-beam"
+  },
+  "repos": {
+    "epk": "https://github.com/devknowsdev/EPK",
+    "focus": "https://github.com/devknowsdev/prism-focus",
+    "spectra": "https://github.com/devknowsdev/prism-spectra",
+    "beam": "https://github.com/devknowsdev/prism-beam"
+  },
+  "notes": [
+    "Hosted Focus and EPK URLs are configured.",
+    "Keep local URLs as development fallbacks only.",
+    "Spectra and Beam currently link to repositories until UI surfaces exist."
+  ]
+}
