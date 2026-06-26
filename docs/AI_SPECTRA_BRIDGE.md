@@ -54,14 +54,46 @@ POST /api/v1/ai/request
 - `dumpAiDailyPlan()`
 - `dumpAiInterpret()`
 
-`src/ai_spectra_settings.js` adds a visible Spectra panel to Settings -> AI. It
-does not mutate Focus tasks or planner state. It only helps the user:
+`src/ai_spectra_settings.js` adds a visible Spectra panel and a guided setup
+wizard to Settings -> AI. It does not mutate Focus tasks or planner state. It
+helps the user:
 
+- understand what Focus AI can and cannot do,
 - enable or disable Spectra-first AI,
 - keep legacy direct-provider fallback explicit,
 - save the local Spectra gateway URL/token,
 - copy a gateway startup command,
-- run a health + read-only AI request smoke test from Focus.
+- download a Mac `.command` launcher file,
+- run a health + read-only AI request smoke test from Focus,
+- see provider/model/data-boundary status after a successful test,
+- troubleshoot token, branch, mock-mode, and real-Ollama setup issues.
+
+## Product behaviour
+
+The app should not require an AI assistant to explain basic setup. The Settings
+panel now starts with plain-language status:
+
+```text
+Connected / Not tested / Needs setup
+```
+
+The setup wizard has five steps:
+
+1. Understand what Focus AI does.
+2. Connect Spectra.
+3. Test the connection.
+4. Use AI in Focus.
+5. Troubleshoot common failures.
+
+The wizard explicitly explains the local-browser limitation: a static browser
+page cannot silently start a local Node/Ollama process. The closest safe
+button-driven flow is therefore:
+
+1. Save defaults in Focus.
+2. Copy or download a Spectra launcher.
+3. Start/keep open the Spectra terminal window.
+4. Click `Test Spectra` in Focus.
+5. Enable AI features and try a safe helper.
 
 ## Safety boundary
 
@@ -109,34 +141,49 @@ adhd4_local_ai_token
 
 ## Local test path
 
-1. Start Spectra's mock gateway to prove the bridge:
+1. Start Focus on this branch.
 
 ```bash
-cd ../prism-spectra
-AI_FORGE_AI_GATEWAY_TOKEN="dev-local-token" npm run ai:gateway
-```
-
-2. Or start Spectra with real local Ollama executors:
-
-```bash
-cd ../prism-spectra
-AI_FORGE_AI_GATEWAY_TOKEN="dev-local-token" AI_FORGE_MOCK_EXECUTORS=0 npm run ai:gateway
-```
-
-3. Start Focus:
-
-```bash
-cd ../prism-focus
+cd ~/Desktop/prism-focus
+git fetch origin
+git checkout spectra-focus-ai-init-20260627
 python3 -m http.server 8080
 ```
 
-4. In Focus:
+2. In Focus:
 
 - Open Settings -> AI.
+- Click `Open AI setup wizard`.
 - Click `Use dev defaults`.
+- Use `Copy mock command` or `Download launcher`.
+- Start Spectra and keep the terminal open.
 - Click `Test Spectra`.
-- Enable AI master.
+- Enable AI features.
 - Use a low-risk AI helper such as daily plan suggestion or journal interpretation.
+
+3. Mock Spectra command used by the app:
+
+```bash
+cd ~/Desktop
+if [ ! -d prism-spectra ]; then git clone https://github.com/devknowsdev/prism-spectra.git; fi
+cd prism-spectra
+git fetch origin
+git checkout spectra-focus-ai-init-20260627
+npm install
+AI_FORGE_AI_GATEWAY_TOKEN="dev-local-token" npm run ai:gateway
+```
+
+4. Real local Ollama command used by the app:
+
+```bash
+cd ~/Desktop
+if [ ! -d prism-spectra ]; then git clone https://github.com/devknowsdev/prism-spectra.git; fi
+cd prism-spectra
+git fetch origin
+git checkout spectra-focus-ai-init-20260627
+npm install
+AI_FORGE_AI_GATEWAY_TOKEN="dev-local-token" AI_FORGE_MOCK_EXECUTORS=0 npm run ai:gateway
+```
 
 ## Future work
 
@@ -148,7 +195,8 @@ Focus-AI-Bridge-003 — add browser smoke test for Settings -> AI Spectra panel 
 
 Possible scope:
 
-- verify the settings panel in a browser test,
+- verify the setup wizard in a browser test,
 - remove duplicate legacy local-daemon controls from the Ollama card,
 - add a small visible status badge in the header Assistant menu,
+- create a packaged local launcher/app so setup can eventually become true one-click,
 - remove direct provider fallback after Spectra is comfortable.
