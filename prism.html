@@ -15,24 +15,22 @@
       <p class="kicker">Prism</p>
       <h1>One calm launcher.</h1>
       <p>Open the bounded Prism surfaces without needing local terminal commands for normal Focus and EPK work.</p>
-      <div class="actions"><button class="btn" id="reset-btn" type="button">Reset browser link overrides</button><a class="btn" href="/">Back to Focus</a></div>
+      <div class="actions"><a class="btn" href="/status">Open Status</a><a class="btn" href="/">Back to Focus</a></div>
     </section>
     <section class="grid" id="cards" aria-live="polite"></section>
     <section class="card settings">
       <h2>How this works</h2>
-      <p class="small">This page reads <code>/prism-links.json</code>. If old localhost links were saved in this browser, use the reset button above, then reload Focus or EPK Publisher.</p>
+      <p class="small">This page reads <code>/prism-links.json</code> and shows the bounded Prism surfaces for online and local development links.</p>
     </section>
     <footer class="footer"><span>Centralised navigation, bounded repos.</span><span>Spectra and Beam stay repo/local-first until dedicated UIs exist.</span></footer>
   </main>
   <script>
     const fallback={links:{epkPublisherOnline:'https://epk-3k1.pages.dev/publisher/index.html',epkPublicOnline:'https://epk-3k1.pages.dev/',focusOnline:'https://prism-focus.pages.dev/',beamOnline:'https://github.com/devknowsdev/prism-beam'},repos:{epk:'https://github.com/devknowsdev/EPK',focus:'https://github.com/devknowsdev/prism-focus',spectra:'https://github.com/devknowsdev/prism-spectra',beam:'https://github.com/devknowsdev/prism-beam'}};
-    const keys=['epkPublisherOnline','epkPublisherLocal','epkPublicOnline','epkPublicLocal','focusOnline','focusLocal','spectraOnline','spectraLocal','beamOnline'];
     const safe=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const button=(label,url,primary=false)=>url?`<a class="btn ${primary?'primary':''}" href="${safe(url)}">${safe(label)}</a>`:`<span class="small is-empty">${safe(label)} not set</span>`;
     function card({title,status,description,online,local,repo}){return `<article class="card"><p class="status">${safe(status)}</p><h2>${safe(title)}</h2><p>${safe(description)}</p><div class="actions">${button('Open online',online,true)}${button('Open local',local)}${button('Repo',repo)}</div></article>`;}
     function render(config){const links=config.links||{};const repos=config.repos||{};document.getElementById('cards').innerHTML=[card({title:'Focus',status:'Planning / daily OS',description:'Dashboard, tasks, timer, routines, and working memory.',online:links.focusOnline,local:links.focusLocal,repo:repos.focus}),card({title:'EPK Publisher',status:'Music profile editor',description:'Private publisher surface for EPK content and public-page workflow.',online:links.epkPublisherOnline,local:links.epkPublisherLocal,repo:repos.epk}),card({title:'Public EPK',status:'Audience-facing site',description:'The public music and press site.',online:links.epkPublicOnline,local:links.epkPublicLocal,repo:repos.epk}),card({title:'Spectra',status:'Local workbench',description:'AI orchestration workbench; currently local/repo-first.',online:links.spectraOnline,local:links.spectraLocal,repo:repos.spectra}),card({title:'Beam',status:'Reference layer',description:'AI-facing memory, docs, handovers, contracts, and anti-drift material.',online:links.beamOnline,local:'',repo:repos.beam})].join('');}
     async function load(){try{const response=await fetch('/prism-links.json',{cache:'no-store'});if(response.ok){render(await response.json());return;}}catch(e){}render(fallback);}load();
-    document.getElementById('reset-btn').addEventListener('click',()=>{keys.forEach(k=>localStorage.removeItem(`prism-tools-url:${k}`));localStorage.removeItem('prism-tools-preferred-mode');alert('Prism browser link overrides cleared. Reload Focus or EPK Publisher next.');});
   </script>
 </body>
 </html>
