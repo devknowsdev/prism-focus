@@ -23,7 +23,7 @@ const _plannerOriginalTlPointerUp=typeof tlPointerUp==='function'?tlPointerUp:nu
 
 function _plannerTimelineTargetIsEmpty(e,scrollEl){
   const target=e&&e.target;
-  if(!target||!scrollEl||!scrollEl.contains(target)) return false;
+  if(!target||!target.closest||!scrollEl||!scrollEl.contains(target)) return false;
   if(target.closest('button,input,select,textarea,a')) return false;
   if(target.closest('[data-task-id],[id^="tl-pill-"],#tl-draft-pill,#tl-click-draft-pill,.tl-click-create-ui')) return false;
   return true;
@@ -213,6 +213,17 @@ tlPointerMove=plannerTimelinePointerTrack;
 tlPointerUp=function(e,scrollEl){
   if(_plannerOriginalTlPointerUp) return _plannerOriginalTlPointerUp(e,scrollEl);
 };
+
+// Existing render_planner.js only calls tlCreateStart for a narrow target subset.
+// This capture listener makes true empty-space clicks work anywhere in the scheduler.
+document.addEventListener('pointerdown',e=>{
+  const target=e.target;
+  if(!target||!target.closest) return;
+  const scrollEl=target.closest('.tl-scroll');
+  if(!scrollEl) return;
+  if(!_plannerTimelineTargetIsEmpty(e,scrollEl)) return;
+  plannerTimelineEmptyClick(e,scrollEl);
+},true);
 
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'&&plannerClickCreateState){
