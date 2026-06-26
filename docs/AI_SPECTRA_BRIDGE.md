@@ -1,6 +1,6 @@
 # Focus AI Spectra Bridge
 
-Last-Updated: 2026-06-25
+Last-Updated: 2026-06-27
 
 ## Purpose
 
@@ -28,14 +28,17 @@ instead of replacing the large legacy AI service file.
 
 - `src/ai_adapter_local.js`
 - `src/ai_spectra_bridge.js`
+- `src/ai_spectra_settings.js`
 - `index.html`
 
 ## What changed
 
-`src/ai_adapter_local.js` now exposes:
+`src/ai_adapter_local.js` exposes:
 
 ```js
 window.AiAdapter.aiRequest(opts)
+window.AiAdapter.health()
+window.AiAdapter.testAiRequest()
 ```
 
 It posts read-only requests to:
@@ -50,6 +53,15 @@ POST /api/v1/ai/request
 - `aiCallJson()`
 - `dumpAiDailyPlan()`
 - `dumpAiInterpret()`
+
+`src/ai_spectra_settings.js` adds a visible Spectra panel to Settings -> AI. It
+does not mutate Focus tasks or planner state. It only helps the user:
+
+- enable or disable Spectra-first AI,
+- keep legacy direct-provider fallback explicit,
+- save the local Spectra gateway URL/token,
+- copy a gateway startup command,
+- run a health + read-only AI request smoke test from Focus.
 
 ## Safety boundary
 
@@ -76,55 +88,67 @@ legacy fallback when:
 - Spectra returns no usable response, or
 - JSON parsing fails and a legacy provider is available.
 
-Future work can remove the direct provider path after the Spectra gateway feels
-comfortable.
+The fallback is now visible in Settings -> AI as `Allow legacy provider fallback
+if Spectra is unavailable`. Future work can remove the direct provider path
+after the Spectra gateway feels comfortable.
 
 ## Settings assumptions
 
 The bridge respects `aiSettings.masterEnabled`.
 
-Because existing settings UI already has a local AI daemon URL/token section,
-this first bridge does not add new settings controls. It treats Spectra as enabled
-unless `aiSettings.spectraEnabled === false` is set by future UI work.
+Spectra-first mode is enabled by default unless `aiSettings.spectraEnabled ===
+false`. Legacy fallback is enabled by default unless
+`aiSettings.legacyProviderFallback === false`.
 
-Legacy fallback is enabled unless `aiSettings.legacyProviderFallback === false`
-is set by future UI work.
+The local gateway URL/token are stored in browser localStorage:
+
+```text
+adhd4_local_ai_url
+adhd4_local_ai_token
+```
 
 ## Local test path
 
-1. Start Spectra's gateway:
+1. Start Spectra's mock gateway to prove the bridge:
 
 ```bash
 cd ../prism-spectra
 AI_FORGE_AI_GATEWAY_TOKEN="dev-local-token" npm run ai:gateway
 ```
 
-2. Start Focus:
+2. Or start Spectra with real local Ollama executors:
+
+```bash
+cd ../prism-spectra
+AI_FORGE_AI_GATEWAY_TOKEN="dev-local-token" AI_FORGE_MOCK_EXECUTORS=0 npm run ai:gateway
+```
+
+3. Start Focus:
 
 ```bash
 cd ../prism-focus
 python3 -m http.server 8080
 ```
 
-3. In Focus:
+4. In Focus:
 
 - Open Settings -> AI.
-- Confirm local AI URL is `http://127.0.0.1:3000`.
-- Confirm token is `dev-local-token` or the token printed by Spectra.
+- Click `Use dev defaults`.
+- Click `Test Spectra`.
 - Enable AI master.
-- Use a low-risk AI helper such as daily plan suggestion or task parsing.
+- Use a low-risk AI helper such as daily plan suggestion or journal interpretation.
 
 ## Future work
 
 Recommended follow-up:
 
 ```text
-Focus-AI-Bridge-002 — add explicit settings controls and visible status for Spectra-first AI
+Focus-AI-Bridge-003 — add browser smoke test for Settings -> AI Spectra panel and first AI helper action
 ```
 
 Possible scope:
 
-- show Spectra status alongside legacy provider status
-- add explicit toggle for legacy fallback
-- make local gateway setup copyable from Settings
-- add a browser smoke test for `AiAdapter.aiRequest`
+- verify the settings panel in a browser test,
+- remove duplicate legacy local-daemon controls from the Ollama card,
+- add a small visible status badge in the header Assistant menu,
+- remove direct provider fallback after Spectra is comfortable.
