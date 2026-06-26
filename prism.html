@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prism Launcher</title>
+  <style>
+    :root{--bg:#f7f4ef;--card:#fffaf3;--ink:#1f2933;--muted:#68717c;--line:#dfd4c4;--accent:#4f8f73;--accent2:#7a5cff;}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at top left,rgba(79,143,115,.16),transparent 34%),var(--bg);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);display:flex;align-items:flex-start;justify-content:center;padding:34px 16px}.shell{width:min(1050px,100%);display:grid;gap:18px}.hero,.card{background:var(--card);border:1px solid var(--line);border-radius:22px;box-shadow:0 20px 70px rgba(31,41,51,.08)}.hero{padding:28px}.kicker{margin:0 0 7px;color:var(--accent);font-size:12px;font-weight:900;letter-spacing:.14em;text-transform:uppercase}h1{margin:0;font-size:clamp(34px,7vw,66px);line-height:.94;letter-spacing:-.06em}p{color:var(--muted);line-height:1.55}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:13px}.card{padding:18px;display:grid;gap:12px}.card h2{margin:0;font-size:20px}.status{margin:0;color:var(--accent);font-weight:800;font-size:12px;letter-spacing:.08em;text-transform:uppercase}.actions{display:flex;flex-wrap:wrap;gap:8px}.btn{border:1px solid var(--line);border-radius:12px;background:white;color:var(--ink);font:inherit;font-weight:800;font-size:13px;padding:10px 12px;text-decoration:none;cursor:pointer}.btn.primary{background:var(--accent);border-color:var(--accent);color:white}.btn:focus-visible{outline:3px solid rgba(122,92,255,.35);outline-offset:2px}.settings{padding:18px}.settings code{background:rgba(79,143,115,.1);padding:2px 5px;border-radius:6px}.small{font-size:13px}.is-empty{opacity:.58}.footer{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;color:var(--muted);font-size:13px;padding:0 4px 8px}
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <p class="kicker">Prism</p>
+      <h1>One calm launcher.</h1>
+      <p>Open the bounded Prism surfaces without needing local terminal commands for normal Focus and EPK work.</p>
+      <div class="actions"><button class="btn" id="reset-btn" type="button">Reset browser link overrides</button><a class="btn" href="/">Back to Focus</a></div>
+    </section>
+    <section class="grid" id="cards" aria-live="polite"></section>
+    <section class="card settings">
+      <h2>How this works</h2>
+      <p class="small">This page reads <code>/prism-links.json</code>. If old localhost links were saved in this browser, use the reset button above, then reload Focus or EPK Publisher.</p>
+    </section>
+    <footer class="footer"><span>Centralised navigation, bounded repos.</span><span>Spectra and Beam stay repo/local-first until dedicated UIs exist.</span></footer>
+  </main>
+  <script>
+    const fallback={links:{epkPublisherOnline:'https://epk-3k1.pages.dev/publisher/index.html',epkPublicOnline:'https://epk-3k1.pages.dev/',focusOnline:'https://prism-focus.pages.dev/',beamOnline:'https://github.com/devknowsdev/prism-beam'},repos:{epk:'https://github.com/devknowsdev/EPK',focus:'https://github.com/devknowsdev/prism-focus',spectra:'https://github.com/devknowsdev/prism-spectra',beam:'https://github.com/devknowsdev/prism-beam'}};
+    const keys=['epkPublisherOnline','epkPublisherLocal','epkPublicOnline','epkPublicLocal','focusOnline','focusLocal','spectraOnline','spectraLocal','beamOnline'];
+    const safe=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const button=(label,url,primary=false)=>url?`<a class="btn ${primary?'primary':''}" href="${safe(url)}">${safe(label)}</a>`:`<span class="small is-empty">${safe(label)} not set</span>`;
+    function card({title,status,description,online,local,repo}){return `<article class="card"><p class="status">${safe(status)}</p><h2>${safe(title)}</h2><p>${safe(description)}</p><div class="actions">${button('Open online',online,true)}${button('Open local',local)}${button('Repo',repo)}</div></article>`;}
+    function render(config){const links=config.links||{};const repos=config.repos||{};document.getElementById('cards').innerHTML=[card({title:'Focus',status:'Planning / daily OS',description:'Dashboard, tasks, timer, routines, and working memory.',online:links.focusOnline,local:links.focusLocal,repo:repos.focus}),card({title:'EPK Publisher',status:'Music profile editor',description:'Private publisher surface for EPK content and public-page workflow.',online:links.epkPublisherOnline,local:links.epkPublisherLocal,repo:repos.epk}),card({title:'Public EPK',status:'Audience-facing site',description:'The public music and press site.',online:links.epkPublicOnline,local:links.epkPublicLocal,repo:repos.epk}),card({title:'Spectra',status:'Local workbench',description:'AI orchestration workbench; currently local/repo-first.',online:links.spectraOnline,local:links.spectraLocal,repo:repos.spectra}),card({title:'Beam',status:'Reference layer',description:'AI-facing memory, docs, handovers, contracts, and anti-drift material.',online:links.beamOnline,local:'',repo:repos.beam})].join('');}
+    async function load(){try{const response=await fetch('/prism-links.json',{cache:'no-store'});if(response.ok){render(await response.json());return;}}catch(e){}render(fallback);}load();
+    document.getElementById('reset-btn').addEventListener('click',()=>{keys.forEach(k=>localStorage.removeItem(`prism-tools-url:${k}`));localStorage.removeItem('prism-tools-preferred-mode');alert('Prism browser link overrides cleared. Reload Focus or EPK Publisher next.');});
+  </script>
+</body>
+</html>
