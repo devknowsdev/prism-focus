@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prism Status</title>
+  <style>
+    :root{--bg:#f7f4ef;--card:#fffaf3;--ink:#1f2933;--muted:#68717c;--line:#dfd4c4;--accent:#4f8f73;--warn:#b7791f;--local:#6d5dfc;}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at top left,rgba(79,143,115,.16),transparent 34%),var(--bg);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);padding:34px 16px}.shell{width:min(980px,100%);margin:0 auto;display:grid;gap:16px}.hero,.card{background:var(--card);border:1px solid var(--line);border-radius:22px;box-shadow:0 20px 70px rgba(31,41,51,.08)}.hero{padding:28px}.kicker{margin:0 0 7px;color:var(--accent);font-size:12px;font-weight:900;letter-spacing:.14em;text-transform:uppercase}h1{margin:0;font-size:clamp(34px,7vw,64px);line-height:.94;letter-spacing:-.06em}p{color:var(--muted);line-height:1.55}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:13px}.card{padding:18px;display:grid;gap:10px}.row{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;border-top:1px solid var(--line);padding-top:10px}.badge{font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;border-radius:999px;padding:5px 8px;background:rgba(79,143,115,.13);color:var(--accent)}.badge.warn{background:rgba(183,121,31,.13);color:var(--warn)}.badge.local{background:rgba(109,93,252,.12);color:var(--local)}.btn{border:1px solid var(--line);border-radius:12px;background:white;color:var(--ink);font:inherit;font-weight:800;font-size:13px;padding:10px 12px;text-decoration:none;display:inline-flex;width:max-content}.actions{display:flex;flex-wrap:wrap;gap:8px}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;word-break:break-all}.small{font-size:13px}.footer{color:var(--muted);font-size:13px;padding:0 4px 8px}
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <p class="kicker">Prism status</p>
+      <h1>Suite wiring check.</h1>
+      <p>This page verifies the deployed Prism link contract. It does not run Spectra or touch local files.</p>
+      <div class="actions"><a class="btn" href="/prism">Open launcher</a><a class="btn" href="/">Back to Focus</a></div>
+    </section>
+    <section class="grid" id="cards"></section>
+    <section class="card">
+      <h2>Config source</h2>
+      <p class="mono" id="config-source">Loading /prism-links.json…</p>
+      <p class="small">A configured URL means the launcher knows where to send you. A browser can still block cross-site checks, so open buttons are the reliable test.</p>
+    </section>
+    <footer class="footer">Spectra remains local-first; Beam remains repo/docs until dedicated UIs exist.</footer>
+  </main>
+  <script>
+    const fallback={links:{epkPublisherOnline:'https://epk-3k1.pages.dev/publisher/index.html',epkPublicOnline:'https://epk-3k1.pages.dev/',focusOnline:'https://prism-focus.pages.dev/',beamOnline:'https://github.com/devknowsdev/prism-beam'},repos:{epk:'https://github.com/devknowsdev/EPK',focus:'https://github.com/devknowsdev/prism-focus',spectra:'https://github.com/devknowsdev/prism-spectra',beam:'https://github.com/devknowsdev/prism-beam'}};
+    const safe=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    function statusBadge(kind,label){return `<span class="badge ${kind||''}">${safe(label)}</span>`;}
+    function appCard({title,role,url,local,repo,kind}){const configured=Boolean(url||local||repo);const badge=kind==='local'?statusBadge('local','local/repo only'):(configured?statusBadge('', 'configured'):statusBadge('warn','not configured'));return `<article class="card"><div class="row" style="border-top:0;padding-top:0"><h2>${safe(title)}</h2>${badge}</div><p>${safe(role)}</p><p class="mono">${safe(url||local||repo||'No URL configured')}</p><div class="actions">${url?`<a class="btn" href="${safe(url)}">Open online</a>`:''}${local?`<a class="btn" href="${safe(local)}">Open local</a>`:''}${repo?`<a class="btn" href="${safe(repo)}">Repo</a>`:''}</div></article>`;}
+    function render(config){const links=config.links||{};const repos=config.repos||{};document.getElementById('cards').innerHTML=[appCard({title:'Focus',role:'Hosted planning and daily OS surface.',url:links.focusOnline,local:links.focusLocal,repo:repos.focus}),appCard({title:'EPK Publisher',role:'Hosted publisher/editor surface.',url:links.epkPublisherOnline,local:links.epkPublisherLocal,repo:repos.epk}),appCard({title:'Public EPK',role:'Audience-facing public site.',url:links.epkPublicOnline,local:links.epkPublicLocal,repo:repos.epk}),appCard({title:'Spectra',role:'Local-first orchestration workbench.',url:links.spectraOnline,local:links.spectraLocal,repo:repos.spectra,kind:'local'}),appCard({title:'Beam',role:'AI-facing reference, memory, and docs layer.',url:links.beamOnline,local:'',repo:repos.beam})].join('');}
+    async function load(){try{const response=await fetch('/prism-links.json',{cache:'no-store'});if(response.ok){const config=await response.json();document.getElementById('config-source').textContent='Loaded /prism-links.json at '+new Date().toLocaleString();render(config);return;}}catch(e){document.getElementById('config-source').textContent='Could not load /prism-links.json; showing fallback defaults.';}render(fallback);}load();
+  </script>
+</body>
+</html>
