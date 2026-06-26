@@ -3,14 +3,40 @@
 // This file intentionally keeps a tiny, stable surface so the dashboard can
 // feature-detect a local orchestrator without coupling to implementation details.
 (function(){
-  const LOCAL_URL = (window.__AI_FORGE_LOCAL_URL__ || localStorage.getItem('adhd4_local_ai_url') || 'http://127.0.0.1:3000') + '/api/v1';
-  const LOCAL_TOKEN = (typeof localStorage !== 'undefined' && localStorage.getItem('adhd4_local_ai_token')) || window.__AI_FORGE_LOCAL_TOKEN__ || 'dev-local-token';
+  const DEFAULT_LOCAL_URL = 'http://127.0.0.1:3000';
+  const DEFAULT_LOCAL_TOKEN = 'dev-local-token';
+
+  function localBaseUrl(){
+    const stored = (typeof localStorage !== 'undefined' && localStorage.getItem('adhd4_local_ai_url')) || '';
+    const configured = window.__AI_FORGE_LOCAL_URL__ || stored || DEFAULT_LOCAL_URL;
+    return String(configured).replace(/\/$/, '');
+  }
+
+  function apiBaseUrl(){
+    return `${localBaseUrl()}/api/v1`;
+  }
+
+  function localToken(){
+    return (typeof localStorage !== 'undefined' && localStorage.getItem('adhd4_local_ai_token'))
+      || window.__AI_FORGE_LOCAL_TOKEN__
+      || DEFAULT_LOCAL_TOKEN;
+  }
 
   async function jsonFetch(path, body, method = 'POST'){
-    const token = (typeof localStorage !== 'undefined' && localStorage.getItem('adhd4_local_ai_token')) || window.__AI_FORGE_LOCAL_TOKEN__ || 'dev-local-token';
+    const token = localToken();
     const opts = { method, headers: { 'Content-Type': 'application/json', 'x-local-token': token } };
     if (method === 'POST' || method === 'PATCH') opts.body = JSON.stringify(body || {});
-    const res = await fetch(LOCAL_URL + path, opts);
+    const res = await fetch(apiBaseUrl() + path, opts);
+    if (!res.ok) {
+      const txt = await res.text().catch(()=>'');
+      throw new Error(`HTTP ${res.status} ${txt}`);
+    }
+    return res.json();
+  }
+
+  async function health(){
+    const token = localToken();
+    const res = await fetch(apiBaseUrl() + '/health', { headers: token ? { 'x-local-token': token } : {} });
     if (!res.ok) {
       const txt = await res.text().catch(()=>'');
       throw new Error(`HTTP ${res.status} ${txt}`);
@@ -21,12 +47,12 @@
   window.AiAdapter = {
     async isAvailable(){
       try {
-        const token = (typeof localStorage !== 'undefined' && localStorage.getItem('adhd4_local_ai_token')) || window.__AI_FORGE_LOCAL_TOKEN__ || LOCAL_TOKEN;
-        const res = await fetch(LOCAL_URL + '/health', { headers: token ? { 'x-local-token': token } : {} });
-        if (!res.ok) return false;
-        const j = await res.json();
+        const j = await health();
         return !!(j && j.ok && j.available);
       } catch (e) { return false; }
+    },
+    async health(){
+      return await health();
     },
     async aiRequest(opts){
       return await jsonFetch('/ai/request', {
@@ -36,6 +62,23 @@
         ...(opts || {}),
       }, 'POST');
     },
+    async testAiRequest(){
+      return await this.aiRequest({
+        sourceApp: 'prism-focus',
+        intent: 'focus-ai-bridge-smoke-test',
+        riskClass: 'read-only',
+        preferredMode: 'local-first',
+        nodeType: 'docs',
+        record: false,
+        input: {
+          prompt: 'Reply with one short sentence confirming the Prism Focus AI bridge is connected.',
+        },
+        context: {
+          appSurface: 'settings',
+          purpose: 'manual connection test',
+        },
+      });
+    },
     async buildGraph(opts){
       return await jsonFetch('/build-graph', opts, 'POST');
     },
@@ -44,10 +87,10 @@
     },
     async executeGraph(graph, mode='sequential', onEvent=null){
       // open a streaming connection to the daemon and parse chunked JSON events
-      const url = LOCAL_URL + '/execute-graph';
+      const url = apiBaseUrl() + '/execute-graph';
       const body = { graph, mode };
       const controller = new AbortController();
-      const token = (typeof localStorage !== 'undefined' && localStorage.getItem('adhd4_local_ai_token')) || window.__AI_FORGE_LOCAL_TOKEN__ || 'dev-local-token';
+      const token = localToken();
       const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-local-token': token }, body: JSON.stringify(body), signal: controller.signal });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const reader = res.body.getReader();
@@ -77,14 +120,14 @@
       return await jsonFetch('/conversations', opts, 'POST');
     },
     async listConversations(){
-      const token = (typeof localStorage !== 'undefined' && localStorage.getItem('adhd4_local_ai_token')) || window.__AI_FORGE_LOCAL_TOKEN__ || LOCAL_TOKEN;
-      const res = await fetch(LOCAL_URL + '/conversations', { method: 'GET', headers: token ? { 'x-local-token': token } : {} });
+      const token = localToken();
+      const res = await fetch(apiBaseUrl() + '/conversations', { method: 'GET', headers: token ? { 'x-local-token': token } : {} });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return res.json();
     },
     async getConversationMessages(conversationId){
-      const token = (typeof localStorage !== 'undefined' && localStorage.getItem('adhd4_local_ai_token')) || window.__AI_FORGE_LOCAL_TOKEN__ || LOCAL_TOKEN;
-      const res = await fetch(LOCAL_URL + `/conversations/${conversationId}/messages`, { method: 'GET', headers: token ? { 'x-local-token': token } : {} });
+      const token = localToken();
+      const res = await fetch(apiBaseUrl() + `/conversations/${conversationId}/messages`, { method: 'GET', headers: token ? { 'x-local-token': token } : {} });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return res.json();
     },
@@ -113,8 +156,8 @@
       return await jsonFetch(`/attachments/${attachmentId}/meta`, {}, 'GET');
     },
     async downloadAttachment(attachmentId){
-      const token = (typeof localStorage !== 'undefined' && localStorage.getItem('adhd4_local_ai_token')) || window.__AI_FORGE_LOCAL_TOKEN__ || LOCAL_TOKEN;
-      const res = await fetch(LOCAL_URL + `/download/${attachmentId}`, { method: 'GET', headers: token ? { 'x-local-token': token } : {} });
+      const token = localToken();
+      const res = await fetch(apiBaseUrl() + `/download/${attachmentId}`, { method: 'GET', headers: token ? { 'x-local-token': token } : {} });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return await res.blob();
     },
@@ -125,9 +168,9 @@
       return await jsonFetch(`/attachments/${attachmentId}/tags`, { tag }, 'POST');
     },
     async removeAttachmentTag(attachmentId, tag){
-      const token = (typeof localStorage !== 'undefined' && localStorage.getItem('adhd4_local_ai_token')) || window.__AI_FORGE_LOCAL_TOKEN__ || LOCAL_TOKEN;
+      const token = localToken();
       const encoded = encodeURIComponent(String(tag));
-      const res = await fetch(LOCAL_URL + `/attachments/${attachmentId}/tags/${encoded}`, { method: 'DELETE', headers: token ? { 'x-local-token': token } : {} });
+      const res = await fetch(apiBaseUrl() + `/attachments/${attachmentId}/tags/${encoded}`, { method: 'DELETE', headers: token ? { 'x-local-token': token } : {} });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return await res.json();
     },
@@ -135,8 +178,8 @@
       return await jsonFetch(`/attachments/${attachmentId}/rename`, { filename }, 'POST');
     },
     async deleteAttachment(attachmentId){
-      const token = (typeof localStorage !== 'undefined' && localStorage.getItem('adhd4_local_ai_token')) || window.__AI_FORGE_LOCAL_TOKEN__ || LOCAL_TOKEN;
-      const res = await fetch(LOCAL_URL + `/attachments/${attachmentId}`, { method: 'DELETE', headers: token ? { 'x-local-token': token } : {} });
+      const token = localToken();
+      const res = await fetch(apiBaseUrl() + `/attachments/${attachmentId}`, { method: 'DELETE', headers: token ? { 'x-local-token': token } : {} });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return res.json();
     },
@@ -153,8 +196,8 @@
       return await jsonFetch('/checkpoints', {}, 'GET');
     },
     async getCheckpoint(nodeId){
-      const token = (typeof localStorage !== 'undefined' && localStorage.getItem('adhd4_local_ai_token')) || window.__AI_FORGE_LOCAL_TOKEN__ || LOCAL_TOKEN;
-      const res = await fetch(LOCAL_URL + `/checkpoints/${encodeURIComponent(nodeId)}`, { method: 'GET', headers: token ? { 'x-local-token': token } : {} });
+      const token = localToken();
+      const res = await fetch(apiBaseUrl() + `/checkpoints/${encodeURIComponent(nodeId)}`, { method: 'GET', headers: token ? { 'x-local-token': token } : {} });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return res.json();
     },
@@ -164,7 +207,10 @@
     async executeNode(graph, nodeId, opts = {}){
       return await jsonFetch('/execute-node', { graph, nodeId, options: opts }, 'POST');
     },
-    url: LOCAL_URL,
-    token: LOCAL_TOKEN,
+    localBaseUrl,
+    apiBaseUrl,
+    localToken,
+    get url(){ return apiBaseUrl(); },
+    get token(){ return localToken(); },
   };
 })();
