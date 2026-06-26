@@ -10,3 +10,31 @@
 /prism.html
   Cache-Control: no-store
   X-Robots-Tag: noindex, nofollow
+
+/prism
+  Cache-Control: no-store
+  X-Robots-Tag: noindex, nofollow
+
+/prism/
+  Cache-Control: no-store
+  X-Robots-Tag: noindex, nofollow
+
+/launcher
+  Cache-Control: no-store
+  X-Robots-Tag: noindex, nofollow
+
+/launcher/
+  Cache-Control: no-store
+  X-Robots-Tag: noindex, nofollow
+
+/status.html
+  Cache-Control: no-store
+  X-Robots-Tag: noindex, nofollow
+
+/status
+  Cache-Control: no-store
+  X-Robots-Tag: noindex, nofollow
+
+/status/
+  Cache-Control: no-store
+  X-Robots-Tag: noindex, nofollow
