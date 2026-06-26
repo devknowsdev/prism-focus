@@ -1,0 +1,26 @@
+{
+  "schema": "prism-links.v1",
+  "preferredMode": "online",
+  "links": {
+    "epkPublisherOnline": "",
+    "epkPublisherLocal": "http://localhost:8095/publisher/index.html",
+    "epkPublicOnline": "",
+    "epkPublicLocal": "http://localhost:8095/",
+    "focusOnline": "",
+    "focusLocal": "http://localhost:8080/",
+    "spectraOnline": "",
+    "spectraLocal": "",
+    "beamOnline": "https://github.com/devknowsdev/prism-beam"
+  },
+  "repos": {
+    "epk": "https://github.com/devknowsdev/EPK",
+    "focus": "https://github.com/devknowsdev/prism-focus",
+    "spectra": "https://github.com/devknowsdev/prism-spectra",
+    "beam": "https://github.com/devknowsdev/prism-beam"
+  },
+  "notes": [
+    "Fill the online URLs after Cloudflare Pages projects are connected.",
+    "Keep local URLs as development fallbacks only.",
+    "Protect EPK Publisher and Focus with Cloudflare Access before treating them as private."
+  ]
+}
