@@ -1,10 +1,10 @@
 /*
 MODULE: focus_header_controls.js
 LAYER: render patch
-PURPOSE: Replace the crowded icon-only Focus header with labelled Plan day, Focus mode, Assistant, and Manage controls.
-USES: render.js header output plus existing global actions from wizard, AI, files, settings, import, widgets, export, and theme controls.
+PURPOSE: Replace the crowded icon-only Focus header with labelled Plan day, Focus mode, Log, Assistant, and Manage controls.
+USES: render.js header output plus existing global actions from wizard, AI, files, settings, import, widgets, export, logger, and theme controls.
 INVARIANTS: Does not remove underlying actions; groups existing controls by user intention; keeps Focus mode visible as a major state switch.
-LAST_STABILIZED: 2026-06-26
+LAST_STABILIZED: 2026-06-27
 */
 (function(){
   if(typeof window==='undefined') return;
@@ -72,6 +72,13 @@ LAST_STABILIZED: 2026-06-26
     return buttonHtml('openWidgetDrawer()','Hidden widgets ('+count+')','ti-layout-grid-add');
   }
 
+  function logTopButton(){
+    if(typeof openDayLogModal!=='function') return '';
+    const summary=typeof getDayLogHeaderSummary==='function'?getDayLogHeaderSummary():'Log';
+    const label=summary&&summary!=='Log'?`Log · ${summary}`:'Log';
+    return `<button type="button" onclick="openDayLogModal();closeFocusHeaderMenus()" title="Open Day Log" style="${btnStyle('default','font-size:12px;padding:7px 11px;border-radius:999px;min-height:31px;font-weight:700;')}"><i class="ti ti-calendar-stats"></i>${safeText(label)}</button>`;
+  }
+
   function patchFocusHeaderControls(){
     if(typeof crisisMode!=='undefined'&&crisisMode) return;
     const root=document.getElementById('root');
@@ -119,6 +126,7 @@ LAST_STABILIZED: 2026-06-26
       <span class="header-date" style="font-size:11px;color:${T.muted};">${safeText(dateLabel)}</span>
       ${menuHtml('Plan day','ti-calendar-check',planItems,'Shape today: wizard, AI plan, or reviewed imports.')}
       ${focusButton}
+      ${logTopButton()}
       ${menuHtml('Assistant','ti-sparkles',assistantItems,'Chat, voice, and AI setup live together here.')}
       ${menuHtml('Manage','ti-adjustments-horizontal',manageItems,'App setup, layout, files, backup, and safe reset controls.')}
     `;
