@@ -26,6 +26,8 @@ function hideWidget(id){
   saveWidgetLayout();render();
 }
 function restoreWidget(id){
+  const def=getWidgetDef(id);
+  if(!def||!def.pinnable)return;
   const w=getWidgetState(id);if(!w)return;
   w.visible=true;w.collapsed=false;
   showWidgetDrawer=false;
@@ -76,7 +78,7 @@ function renderWidgetChrome(id, def, collapsed, bodyHtml, extraButtons=''){
 }
 
 function renderWidgetDrawerHtml(){
-  const hidden=widgetLayout.filter(w=>!w.visible);
+  const hidden=widgetLayout.filter(w=>!w.visible&&getWidgetDef(w.id)?.pinnable);
   if(!hidden.length) return '';
   const rows=hidden.map(w=>{
     const def=getWidgetDef(w.id);if(!def)return '';
