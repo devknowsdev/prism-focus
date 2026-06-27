@@ -3,7 +3,7 @@ MODULE: widget_catalog_patch.js
 LAYER: ui patch
 PURPOSE: Categorise widgets and make hidden/restorable widgets easier to find as the app grows.
 USES: widget_registry.js, core.js widget drawer, storage.js widget layout
-INVARIANTS: System/non-pinnable surfaces stay out of the drawer; Music Tools are hidden on first upgraded load.
+INVARIANTS: System/non-pinnable hidden surfaces stay out of the drawer and hidden-count UI; Music Tools are hidden on first upgraded load.
 LAST_STABILIZED: 2026-06-27
 */
 (function(){
@@ -38,6 +38,14 @@ LAST_STABILIZED: 2026-06-27
     _setDef('daylog',{category:'System',description:'Day Log metadata/history, opened from the top-level Log button.',defaultVisible:false,pinnable:false});
   }
 
+  function _dropHiddenSystemWidgets(){
+    if(!Array.isArray(widgetLayout)) return;
+    widgetLayout=widgetLayout.filter(w=>{
+      const def=typeof getWidgetDef==='function'?getWidgetDef(w.id):null;
+      return w.visible || (def&&def.pinnable);
+    });
+  }
+
   function patchWidgetLayoutLoader(){
     if(typeof loadWidgetLayout!=='function'||loadWidgetLayout.__widgetCatalogPatched) return false;
     const originalLoadWidgetLayout=loadWidgetLayout;
@@ -53,7 +61,8 @@ LAST_STABILIZED: 2026-06-27
           }
           localStorage.setItem('adhd4_music_tools_hidden_default_v1','1');
         }
-      }catch(e){console.warn('Music tools visibility migration failed',e);}
+        _dropHiddenSystemWidgets();
+      }catch(e){console.warn('Widget catalogue layout migration failed',e);}
     };
     loadWidgetLayout.__widgetCatalogPatched=true;
     return true;
@@ -115,6 +124,7 @@ LAST_STABILIZED: 2026-06-27
 
   function install(){
     categoriseWidgets();
+    _dropHiddenSystemWidgets();
     patchWidgetLayoutLoader();
     patchWidgetDrawer();
   }
