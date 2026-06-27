@@ -1,9 +1,9 @@
 /*
 MODULE: focus_header_controls.js
 LAYER: render patch
-PURPOSE: Replace the crowded icon-only Focus header with labelled Plan day, Focus mode, Log, Assistant, and Manage controls.
+PURPOSE: Replace the crowded icon-only Focus header with labelled Focus mode, Log, Assistant, and Manage controls.
 USES: render.js header output plus existing global actions from wizard, AI, files, settings, import, widgets, export, logger, and theme controls.
-INVARIANTS: Does not remove underlying actions; groups existing controls by user intention; keeps Focus mode visible as a major state switch.
+INVARIANTS: Does not remove underlying actions; groups planning under Assistant; keeps Focus mode visible as a major state switch.
 LAST_STABILIZED: 2026-06-27
 */
 (function(){
@@ -96,16 +96,13 @@ LAST_STABILIZED: 2026-06-27
     controls.style.alignItems='center';
     controls.style.gap='8px';
 
-    const planItems=[
-      typeof wizOpenFromHeader==='function'?buttonHtml('wizOpenFromHeader()','Open day wizard','ti-sun-high','accent'): '',
-      typeof dumpAiDailyPlan==='function'?buttonHtml('dumpAiDailyPlan()','AI daily plan','ti-list-check'): '',
-      typeof openEpkImport==='function'?buttonHtml('openEpkImport()','Review EPK import','ti-inbox'): ''
-    ];
-
     const assistantItems=[
+      typeof wizOpenFromHeader==='function'?buttonHtml('wizOpenFromHeader()','Plan day wizard','ti-sun-high','accent'): '',
+      typeof dumpAiDailyPlan==='function'?buttonHtml('dumpAiDailyPlan()','AI daily plan','ti-list-check'): '',
       optionalButton('openChatModal','openChatModal()','Chat','ti-message-circle'),
       optionalButton('toggleListenMode','toggleListenMode()',typeof listenModeActive!=='undefined'&&listenModeActive?'Stop listening':'Voice listen',typeof listenModeActive!=='undefined'&&listenModeActive?'ti-microphone-off':'ti-microphone',typeof listenModeActive!=='undefined'&&listenModeActive?'accent2':'default'),
-      optionalButton('openAiSettings','openAiSettings()','AI settings','ti-sparkles',typeof aiSettings!=='undefined'&&aiSettings.masterEnabled?'accent2':'default')
+      optionalButton('openAiSettings','openAiSettings()','AI settings','ti-sparkles',typeof aiSettings!=='undefined'&&aiSettings.masterEnabled?'accent2':'default'),
+      typeof openEpkImport==='function'?buttonHtml('openEpkImport()','Review EPK import','ti-inbox'): ''
     ];
 
     const manageItems=[
@@ -124,10 +121,9 @@ LAST_STABILIZED: 2026-06-27
 
     controls.innerHTML=`
       <span class="header-date" style="font-size:11px;color:${T.muted};">${safeText(dateLabel)}</span>
-      ${menuHtml('Plan day','ti-calendar-check',planItems,'Shape today: wizard, AI plan, or reviewed imports.')}
       ${focusButton}
       ${logTopButton()}
-      ${menuHtml('Assistant','ti-sparkles',assistantItems,'Chat, voice, and AI setup live together here.')}
+      ${menuHtml('Assistant','ti-sparkles',assistantItems,'Plan your day, chat, voice, AI setup, and reviewed imports live together here.')}
       ${menuHtml('Manage','ti-adjustments-horizontal',manageItems,'App setup, layout, files, backup, and safe reset controls.')}
     `;
   }
