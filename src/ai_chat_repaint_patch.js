@@ -1,9 +1,9 @@
 /*
 MODULE: ai_chat_repaint_patch.js
 LAYER: ui patch
-PURPOSE: Keep the visible Focus chat message pane in sync when async Spectra responses arrive.
+PURPOSE: Keep the visible Focus chat message pane in sync when async Spectra responses arrive, and upgrade the composer shortcuts.
 USES: ai_chat_spectra_bridge.js state globals, render.js optional fallback
-INVARIANTS: Does not weaken global data-no-clobber render protection; directly updates only #chat-messages.
+INVARIANTS: Does not weaken global data-no-clobber render protection; directly updates only #chat-messages and #chat-composer.
 LAST_STABILIZED: 2026-06-27
 */
 (function(){
@@ -83,6 +83,67 @@ LAST_STABILIZED: 2026-06-27
     }).join('');
   }
 
+  function composerStyle(){
+    if (typeof inputStyle === 'function') {
+      return inputStyle('flex:1;min-width:0;font-size:13px;line-height:1.35;resize:vertical;min-height:40px;max-height:140px;padding-top:9px;padding-bottom:9px;');
+    }
+    return 'flex:1;min-width:0;font-size:13px;line-height:1.35;resize:vertical;min-height:40px;max-height:140px;padding:9px;border-radius:8px;';
+  }
+
+  function autoSizeComposer(el){
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = Math.min(140, Math.max(40, el.scrollHeight)) + 'px';
+  }
+
+  function upgradeChatComposer(){
+    try {
+      const current = document.getElementById('chat-composer');
+      if (!current) return;
+      if (current.tagName === 'TEXTAREA') {
+        autoSizeComposer(current);
+        return;
+      }
+
+      const textarea = document.createElement('textarea');
+      textarea.id = 'chat-composer';
+      textarea.setAttribute('data-no-clobber', 'true');
+      textarea.rows = 1;
+      textarea.placeholder = current.getAttribute('placeholder') || 'Paste a messy day dump, ask for a schedule, or ask what Focus can do…';
+      textarea.value = current.value || chatComposerText || '';
+      textarea.style.cssText = composerStyle();
+      textarea.title = 'Enter sends. Shift+Enter adds a line break.';
+
+      textarea.addEventListener('input', () => {
+        chatComposerText = textarea.value;
+        autoSizeComposer(textarea);
+      });
+
+      textarea.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter') return;
+        if (event.shiftKey) {
+          setTimeout(() => {
+            chatComposerText = textarea.value;
+            autoSizeComposer(textarea);
+          }, 0);
+          return;
+        }
+
+        event.preventDefault();
+        chatComposerText = textarea.value;
+        if (String(chatComposerText || '').trim()) {
+          if (typeof sendChatPrompt === 'function') sendChatPrompt();
+          setTimeout(() => syncChatPane(true), 0);
+        }
+      });
+
+      current.replaceWith(textarea);
+      autoSizeComposer(textarea);
+    } catch (e) {
+      console.warn('upgradeChatComposer failed', e);
+    }
+  }
+
   function syncChatPane(force = false){
     try {
       if (!showChatModal || !activeConversationId || !chatMessages) return;
@@ -102,11 +163,15 @@ LAST_STABILIZED: 2026-06-27
         dismissed: !!m.dismissed,
       })));
 
-      if (!force && signature === lastPaneSignature) return;
+      if (!force && signature === lastPaneSignature) {
+        upgradeChatComposer();
+        return;
+      }
       lastPaneSignature = signature;
       const wasNearBottom = pane.scrollTop + pane.clientHeight >= pane.scrollHeight - 48;
       pane.innerHTML = _messagesHtml(messages);
       if (wasNearBottom || force) pane.scrollTop = pane.scrollHeight;
+      upgradeChatComposer();
     } catch (e) {
       console.warn('syncChatPane failed', e);
     }
@@ -142,10 +207,13 @@ LAST_STABILIZED: 2026-06-27
     wrapChatAction('startNewChat');
     wrapChatAction('deleteActiveChat');
     wrapChatAction('clearAllChats');
+    upgradeChatComposer();
   }
 
   window.syncChatPane = syncChatPane;
+  window.upgradeChatComposer = upgradeChatComposer;
   setInterval(() => syncChatPane(false), 250);
+  setInterval(upgradeChatComposer, 250);
   setTimeout(install, 0);
   setTimeout(install, 100);
 })();
