@@ -1,12 +1,10 @@
 # Focus AI Spectra Bridge
 
-Last-Updated: 2026-06-27
+Last-Updated: 2026-06-29
 
 ## Purpose
 
-`prism-focus` now prefers the Spectra AI request gateway for ordinary AI helper
-features while preserving the previous direct Ollama/Anthropic path as a legacy
-fallback.
+`prism-focus` prefers the Spectra AI request gateway for ordinary AI helper features while preserving the previous direct Ollama/Anthropic path as a visible legacy fallback.
 
 This supports the suite boundary recorded in Beam:
 
@@ -18,64 +16,78 @@ Focus owns tasks, planner state, and review/confirmation UI.
 ## Runtime path
 
 ```text
-Focus AI helper -> ai_spectra_bridge.js -> AiAdapter.aiRequest() -> Spectra /api/v1/ai/request
+Focus AI helper/chat
+-> AiAdapter.aiRequest()
+-> Spectra /api/v1/ai/request
+-> Spectra provider routing
+-> Focus review UI
+-> user clicks Apply before local task/planner writes
 ```
 
-The bridge is loaded after `src/ai.js`, so it wraps the existing global helpers
-instead of replacing the large legacy AI service file.
+The bridge is loaded after `src/ai.js`, so it wraps existing global helpers instead of replacing the large legacy AI service file. Follow-up hardening patches are loaded after the original Spectra settings/chat scripts.
 
-## Files changed
+## Active branches before PR
+
+```text
+Focus:   devknowsdev/prism-focus:spectra-focus-ai-init-20260627
+Spectra: devknowsdev/prism-spectra:focus-resource-status-20260629
+```
+
+Do not open the Focus PR until local browser validation is clean in mock mode and light real Ollama mode.
+
+## Current local model stack
+
+Use the installed, validated local stack before asking the user to download larger models:
+
+```text
+general/planner/reasoner: qwen3.5:9b
+classifier/fallback:      qwen3:1.7b
+coder:                    qwen2.5-coder:7b
+```
+
+Stale references to `qwen3:8b`, `qwen3:9b`, or Spectra feature branches older than `focus-resource-status-20260629` should be treated as setup-copy bugs unless source is deliberately changed and revalidated.
+
+## Files changed in the Focus bridge slice
 
 - `src/ai_adapter_local.js`
 - `src/ai_spectra_bridge.js`
+- `src/ai_chat_spectra_bridge.js`
+- `src/ai_chat_repaint_patch.js`
 - `src/ai_spectra_settings.js`
+- `src/ai_spectra_assistant_instruction.js`
+- `src/ai_spectra_hardening_patch.js`
 - `index.html`
+- `docs/AI_SPECTRA_BRIDGE.md`
 
-## What changed
+## Spectra-side companion hardening
 
-`src/ai_adapter_local.js` exposes:
+The companion Spectra branch adds gateway support needed by the Focus hardening UI:
 
-```js
-window.AiAdapter.aiRequest(opts)
-window.AiAdapter.health()
-window.AiAdapter.testAiRequest()
-```
+- preserves advisory `aiRole` values such as `classifier` and `planner` in `/api/v1/ai/request` validation,
+- supports a small `maxOutputTokens` cap for lightweight smoke tests,
+- lets Settings -> Test Spectra prefer the classifier route (`qwen3:1.7b`) instead of a full planner prompt,
+- exposes `GET /api/v1/local/status` for local resource status.
 
-It posts read-only requests to:
+The local status endpoint is read-only and is intended for local browser validation safety. It reports:
 
-```http
-POST /api/v1/ai/request
-```
-
-`src/ai_spectra_bridge.js` wraps:
-
-- `aiCall()`
-- `aiCallJson()`
-- `dumpAiDailyPlan()`
-- `dumpAiInterpret()`
-
-`src/ai_spectra_settings.js` adds a visible Spectra panel and a guided setup
-wizard to Settings -> AI. It does not mutate Focus tasks or planner state. It
-helps the user:
-
-- understand what Focus AI can and cannot do,
-- enable or disable Spectra-first AI,
-- keep legacy direct-provider fallback explicit,
-- save the local Spectra gateway URL/token,
-- copy a gateway startup command,
-- download a Mac `.command` launcher file,
-- run a health + read-only AI request smoke test from Focus,
-- see provider/model/data-boundary status after a successful test,
-- troubleshoot token, branch, mock-mode, and real-Ollama setup issues.
+- gateway mode: mock or real,
+- disk free,
+- `.ollama` and `.ollama/models` storage size,
+- Spectra `.demo` runtime size,
+- macOS memory pressure where available,
+- loaded Ollama models from `ollama ps`,
+- top CPU process rows,
+- thermal status from `pmset -g therm` where available.
 
 ## Product behaviour
 
-The app should not require an AI assistant to explain basic setup. The Settings
-panel now starts with plain-language status:
+The Settings -> AI panel starts with plain-language connection status:
 
 ```text
-Connected / Not tested / Needs setup
+Connected / Not tested / Gateway offline / Provider failed
 ```
+
+It now also shows a local resource/status block. The resource block is intentionally visible before heavier real-model validation because real local Ollama runs can use several GB of RAM/GPU and generate heat even when Spectra `.demo` files are tiny.
 
 The setup wizard has five steps:
 
@@ -85,19 +97,18 @@ The setup wizard has five steps:
 4. Use AI in Focus.
 5. Troubleshoot common failures.
 
-The wizard explicitly explains the local-browser limitation: a static browser
-page cannot silently start a local Node/Ollama process. The closest safe
-button-driven flow is therefore:
+The wizard explicitly explains the local-browser limitation: a static browser page cannot silently start a local Node/Ollama process. The safe flow is therefore:
 
 1. Save defaults in Focus.
 2. Copy or download a Spectra launcher.
-3. Start/keep open the Spectra terminal window.
+3. Start and keep open the Spectra terminal window.
 4. Click `Test Spectra` in Focus.
-5. Enable AI features and try a safe helper.
+5. Refresh resources before heavier real-mode prompts.
+6. Enable AI features and try a safe helper.
 
 ## Safety boundary
 
-The Spectra request is always sent with:
+The Spectra request is always read-only:
 
 ```json
 {
@@ -107,36 +118,76 @@ The Spectra request is always sent with:
 }
 ```
 
-The bridge does not directly create tasks, change planner state, publish,
-write files, or execute graph nodes. Existing Focus UI flows still decide when
-suggestions become local state.
+Focus may include advisory routing hints such as:
+
+```json
+{
+  "aiRole": "planner",
+  "maxOutputTokens": 900
+}
+```
+
+These hints do not give Focus provider ownership. Spectra still owns model routing, provider availability checks, budget checks, and final execution.
+
+The bridge does not directly create tasks, change planner state, publish, write files, or execute graph nodes. Chat/day-dump suggestions become local Focus state only after the user clicks `Apply proposed tasks`.
+
+## Chat attachments
+
+Chat attachments are intentionally text-only / blocked for now. If files are selected, Focus warns that full local daemon file API support is still needed and sends text only.
+
+Do not expand direct Focus-to-file-daemon or Focus-to-Ollama attachment handling in this branch.
+
+## Empty real-mode response handling
+
+The previous real-mode validation reached Ollama / `qwen3.5:9b`, but Focus displayed:
+
+```text
+I received that, but no response text was returned.
+```
+
+The hardening patch now keeps the response review-first and shows a targeted diagnostic instead:
+
+```text
+Spectra routed this through <provider> / <model>, but returned an empty response body. I did not create or change any Focus tasks. For debugging, open DevTools and inspect window.lastSpectraEmptyResponse.
+```
+
+Focus also stores the latest raw gateway response for debugging:
+
+```js
+window.lastSpectraChatResponse
+window.lastSpectraEmptyResponse
+window.lastSpectraResourceStatus
+```
 
 ## Legacy fallback
 
-The old direct provider code in `src/ai.js` is still present. It acts as a
-legacy fallback when:
+The old direct provider code in `src/ai.js` is still present. It acts as a visible fallback when:
 
 - Spectra is unreachable,
-- Spectra returns no usable response, or
+- Spectra returns no usable response,
 - JSON parsing fails and a legacy provider is available.
 
-The fallback is now visible in Settings -> AI as `Allow legacy provider fallback
-if Spectra is unavailable`. Future work can remove the direct provider path
-after the Spectra gateway feels comfortable.
+The fallback is visible in Settings -> AI as `Allow legacy provider fallback if Spectra is unavailable`. Do not expand this fallback into primary architecture. Future work can remove the direct provider path after the Spectra gateway feels comfortable.
 
-## Settings assumptions
+## Settings and local storage assumptions
 
 The bridge respects `aiSettings.masterEnabled`.
 
-Spectra-first mode is enabled by default unless `aiSettings.spectraEnabled ===
-false`. Legacy fallback is enabled by default unless
-`aiSettings.legacyProviderFallback === false`.
+Spectra-first mode is enabled by default unless `aiSettings.spectraEnabled === false`. Legacy fallback is enabled by default unless `aiSettings.legacyProviderFallback === false`.
 
 The local gateway URL/token are stored in browser localStorage:
 
 ```text
 adhd4_local_ai_url
 adhd4_local_ai_token
+```
+
+Validated local defaults:
+
+```js
+localStorage.setItem('adhd4_local_ai_url', 'http://127.0.0.1:3000');
+localStorage.setItem('adhd4_local_ai_token', 'dev-local-token');
+location.reload();
 ```
 
 ## Local test path
@@ -147,43 +198,113 @@ adhd4_local_ai_token
 cd ~/Desktop/prism-focus
 git fetch origin
 git checkout spectra-focus-ai-init-20260627
-python3 -m http.server 8080
+python3 -m http.server 4173
 ```
 
-2. In Focus:
+2. Start Ollama if needed.
 
+```bash
+ollama serve
+```
+
+3. Start Spectra mock mode.
+
+```bash
+cd ~/Desktop/prism-spectra
+lsof -tiTCP:3000 -sTCP:LISTEN | xargs -r kill
+git fetch origin
+git checkout focus-resource-status-20260629
+npm install
+
+AI_FORGE_AI_GATEWAY_TOKEN="dev-local-token" \
+AI_FORGE_MOCK_EXECUTORS=1 \
+npm run ai:gateway
+```
+
+4. Start Spectra real mode with a fresh DB/workdir.
+
+```bash
+cd ~/Desktop/prism-spectra
+lsof -tiTCP:3000 -sTCP:LISTEN | xargs -r kill
+git fetch origin
+git checkout focus-resource-status-20260629
+npm install
+
+RUN_ID="$(date +%Y%m%d%H%M%S)"
+
+AI_FORGE_AI_GATEWAY_TOKEN="dev-local-token" \
+AI_FORGE_MOCK_EXECUTORS=0 \
+AI_FORGE_AI_GATEWAY_DB=".demo/ai-gateway-real-${RUN_ID}.db" \
+AI_FORGE_AI_GATEWAY_WORKDIR=".demo/ai-gateway-real-work-${RUN_ID}" \
+OLLAMA_MODEL_PLANNER="qwen3.5:9b" \
+OLLAMA_MODEL_REASONER="qwen3.5:9b" \
+OLLAMA_MODEL_CLASSIFIER="qwen3:1.7b" \
+OLLAMA_MODEL_FALLBACK="qwen3:1.7b" \
+OLLAMA_MODEL_CODER="qwen2.5-coder:7b" \
+npm run ai:gateway
+```
+
+5. In Focus:
+
+- Open `http://localhost:4173/`.
 - Open Settings -> AI.
-- Click `Open AI setup wizard`.
 - Click `Use dev defaults`.
-- Use `Copy mock command` or `Download launcher`.
-- Start Spectra and keep the terminal open.
 - Click `Test Spectra`.
-- Enable AI features.
-- Use a low-risk AI helper such as daily plan suggestion or journal interpretation.
+- Check the local resource/status block.
+- Try a tiny Focus Assistant prompt first.
+- Then try `What can you do in this app?`.
+- Then try a small day-dump scheduling prompt.
+- Verify `Apply proposed tasks` creates local Focus tasks only after confirmation.
 
-3. Mock Spectra command used by the app:
-
-```bash
-cd ~/Desktop
-if [ ! -d prism-spectra ]; then git clone https://github.com/devknowsdev/prism-spectra.git; fi
-cd prism-spectra
-git fetch origin
-git checkout spectra-focus-ai-init-20260627
-npm install
-AI_FORGE_AI_GATEWAY_TOKEN="dev-local-token" npm run ai:gateway
-```
-
-4. Real local Ollama command used by the app:
+## Direct status checks
 
 ```bash
-cd ~/Desktop
-if [ ! -d prism-spectra ]; then git clone https://github.com/devknowsdev/prism-spectra.git; fi
-cd prism-spectra
-git fetch origin
-git checkout spectra-focus-ai-init-20260627
-npm install
-AI_FORGE_AI_GATEWAY_TOKEN="dev-local-token" AI_FORGE_MOCK_EXECUTORS=0 npm run ai:gateway
+curl -i -H "x-local-token: dev-local-token" http://127.0.0.1:3000/api/v1/health
+curl -s -H "x-local-token: dev-local-token" http://127.0.0.1:3000/api/v1/local/status
 ```
+
+Manual resource fallback:
+
+```bash
+df -h /
+du -sh ~/.ollama ~/.ollama/models 2>/dev/null
+cd ~/Desktop/prism-spectra && du -sh .demo .demo/* 2>/dev/null | sort -h | tail -30
+memory_pressure
+ollama ps
+pmset -g therm
+ps -Ao pid,comm,%cpu,%mem,rss | sort -k3 -nr | head -20
+```
+
+Unload model after real testing:
+
+```bash
+ollama stop qwen3.5:9b
+ollama ps
+```
+
+## Known validation status
+
+Already validated by Dave before this hardening slice:
+
+- Focus static app runs.
+- Focus reaches Spectra `/api/v1/health`.
+- Token and CORS work.
+- Mock gateway request works.
+- Mock Focus chat path works.
+- Real Spectra gateway starts with `AI_FORGE_MOCK_EXECUTORS=0`.
+- Ollama models are installed.
+- `qwen3.5:9b` can load.
+- Real Focus chat reached Ollama / `qwen3.5:9b`, but usable response text was empty from Focus's perspective.
+
+Not yet validated after this hardening slice by this assistant:
+
+- local `npm run typecheck`,
+- local `npm test`,
+- browser Settings panel render,
+- browser mock-mode chat,
+- browser real-mode classifier smoke,
+- browser empty-response diagnostic path,
+- Apply proposed tasks flow.
 
 ## Future work
 
@@ -195,8 +316,9 @@ Focus-AI-Bridge-003 — add browser smoke test for Settings -> AI Spectra panel 
 
 Possible scope:
 
-- verify the setup wizard in a browser test,
+- verify the setup wizard and resource/status block in a browser test,
 - remove duplicate legacy local-daemon controls from the Ollama card,
 - add a small visible status badge in the header Assistant menu,
+- add a stale local gateway DB repair/reset path,
 - create a packaged local launcher/app so setup can eventually become true one-click,
 - remove direct provider fallback after Spectra is comfortable.
