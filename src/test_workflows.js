@@ -70,6 +70,12 @@ const clearInterval = ()  => {};
 const setTimeout    = (fn,ms) => { try { fn(); } catch(e){} return 1; };
 const clearTimeout  = ()  => {};
 const fetch         = async () => { throw new Error('network disabled in tests'); };
+// Network is fully stubbed off here, so this harness never exercises actual
+// AiAdapter.aiRequest() payloads (nodeType/aiRole, etc.) — only app-state
+// behavior when AI calls fail. Coverage for aiRole's effect on model
+// selection lives on the Spectra side (test/run.ts, test/ai-request.test.ts
+// in prism-spectra), which tests the real contract without needing to mock
+// a network boundary that isn't this harness's job to own.
 const AbortSignal   = { timeout: () => ({ aborted: false, addEventListener: () => {} }) };
 
 const ctx = vm.createContext({

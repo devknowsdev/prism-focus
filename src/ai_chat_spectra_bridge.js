@@ -334,7 +334,11 @@ If there are no tasks or schedule blocks to propose, use empty arrays.`;
         intent: 'focus-chat-message',
         riskClass: 'read-only',
         preferredMode: 'local-first',
-        nodeType: 'ui',
+        // aiRole, not nodeType: this is a conversational/planning request (day-dump
+        // parsing, task + schedule proposals), not code generation. nodeType "ui"
+        // was a leftover from before aiRole existed and silently routed chat
+        // through the coder-tuned model — see AI_PROGRESS_LOG.md 2026-06-29.
+        aiRole: 'planner',
         input: {
           prompt: text,
           history,

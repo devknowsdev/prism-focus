@@ -68,7 +68,9 @@
         intent: 'focus-ai-bridge-smoke-test',
         riskClass: 'read-only',
         preferredMode: 'local-first',
-        nodeType: 'docs',
+        // Trivial one-sentence echo — classifier (smallest/fastest model) is
+        // plenty; no need to spend planner-tier latency on a connectivity check.
+        aiRole: 'classifier',
         record: false,
         input: {
           prompt: 'Reply with one short sentence confirming the Prism Focus AI bridge is connected.',

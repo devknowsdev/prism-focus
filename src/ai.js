@@ -206,7 +206,11 @@ Rules:
 - note: anything that doesn't fit the task name
 Category ids and names: ${categories.map(c => `${c.id}="${c.name}"`).join(', ') || 'none'}`;
 
-  return await aiCallJson(system, rawText.trim());
+  // Explicit planner role: structured JSON extraction from messy natural
+  // language. Don't rely on the 'docs' nodeType default — that's how the
+  // Focus chat bridge silently ended up on a coder model for similar work
+  // (see AI_PROGRESS_LOG.md 2026-06-29). Say what we need directly.
+  return await aiCallJson(system, rawText.trim(), { aiRole: 'planner' });
 }
 
 async function aiInterpretJournalEntry(rawText) {
@@ -230,7 +234,9 @@ Rules:
 - If no task can be suggested, return taskSuggestions as an empty array.
 - Do not invent categories; use only available category ids or leave catId empty.`;
 
-  const rawResult = await aiCallJson(system, rawText.trim());
+  // Explicit planner role: structured extraction + reflective insight from
+  // free-form journal text. See comment in aiParseTask above.
+  const rawResult = await aiCallJson(system, rawText.trim(), { aiRole: 'planner' });
   return _sanitizeInterpretedJournalResult(rawResult);
 }
 
@@ -311,7 +317,9 @@ Scheduled tasks: ${scheduledCount}.
 Unscheduled tasks: ${unscheduledCount}.
 Top avoided task: ${topAvoidanceTask || 'none'}.
 Habit note: ${habitSummary || 'none'}.`;
-  const rawResult = await aiCallJson(system, user, { maxTokens: 180 });
+  // Explicit planner role: synthesizes energy/schedule/habit context into a
+  // grounded plan suggestion — real reasoning, not templated output.
+  const rawResult = await aiCallJson(system, user, { maxTokens: 180, aiRole: 'planner' });
   return _sanitizeDailyPlanSuggestionResult(rawResult);
 }
 
@@ -690,7 +698,9 @@ Consider: energy level ${energy}/5, ${scheduledCount} tasks already scheduled${t
 
   const user = `Energy: ${energy}/5. Scheduled: ${scheduledCount}. ${topAvoidanceTask ? 'Avoiding: "' + topAvoidanceTask + '"' : ''}`;
 
-  return await aiCall(system, user, { maxTokens: 40 });
+  // classifier: short, largely templated sentence — no real pattern-recognition
+  // demand, so the smallest/fastest model is the right tradeoff here.
+  return await aiCall(system, user, { maxTokens: 40, aiRole: 'classifier' });
 }
 
 async function aiBreakdownTask(taskText, catName) {
@@ -703,7 +713,9 @@ Keep subtask names short (under 8 words). Be specific, not vague.`;
 
   const user = `Task: "${taskText}"${catName ? ` (category: ${catName})` : ''}`;
 
-  const result = await aiCallJson(system, user);
+  // Explicit planner role: structured JSON array generation requiring some
+  // judgment about what's actionable/specific. See comment in aiParseTask.
+  const result = await aiCallJson(system, user, { aiRole: 'planner' });
   if (!Array.isArray(result)) return null;
   return result.filter(x => x && typeof x.text === 'string' && x.text.trim());
 }
@@ -716,7 +728,8 @@ Lowercase. End with a question mark.`;
 
   const user = `Completed: ${tasksCompleted} tasks. Tracked: ${timeTrackedMins} mins. Missed: ${tasksMissed} tasks.`;
 
-  return await aiCall(system, user, { maxTokens: 50 });
+  // classifier: short reflective question, no real pattern-recognition demand.
+  return await aiCall(system, user, { maxTokens: 50, aiRole: 'classifier' });
 }
 
 async function aiCarryOverInsight(repeatedlyMissedTasks) {
@@ -729,6 +742,10 @@ Lowercase. No advice.`;
 
   const user = `Tasks carried over multiple times: ${repeatedlyMissedTasks.slice(0, 3).map(t => '"' + t + '"').join(', ')}`;
 
+  // Deliberately NOT classifier: short output, but noticing a genuine pattern
+  // in repeated avoidance is real interpretive work — a tiny model is more
+  // likely to produce something generic rather than something true. Stays on
+  // the default planner role (see _spectraAiCall in ai_spectra_bridge.js).
   return await aiCall(system, user, { maxTokens: 50 });
 }
 
@@ -744,6 +761,8 @@ Do not give advice. Just name what you notice. Lowercase.`;
 
   const user = `Weekly energy: ${energySummary}. Most avoided: ${topAvoidedCategory || 'unknown'}.`;
 
+  // Deliberately NOT classifier: same reasoning as aiCarryOverInsight above —
+  // spotting a real weekly pattern is interpretive work, not a templated line.
   return await aiCall(system, user, { maxTokens: 60 });
 }
 
