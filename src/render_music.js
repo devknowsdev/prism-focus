@@ -9,7 +9,7 @@ STATE_WRITES: A4, BLACKS, WHITES, a, anchor, b, beatDots, beatOpts, black, black
 PUBLIC_API: _renderKeyboardTab, _renderMetronomeTab, _renderTunerTab, renderToolsWidget
 DEPENDENCIES: see dependency graph
 INVARIANTS: render pure; actions mutate; helpers transform
-LAST_STABILIZED: 2026-06-21
+LAST_STABILIZED: 2026-06-27
 */
 
 // Music Tools render functions — metronome, tuner, and keyboard tab HTML builders.
@@ -166,17 +166,14 @@ function _renderKeyboardTab(){
             <span style="font-size:10px;color:${T.muted};font-weight:700;text-transform:uppercase;letter-spacing:.06em;">Oct</span>
             <button onclick="setKbOctave(${kbOctave-1})" ${kbOctave<=1?'disabled':''} style="${btnStyle('default','font-size:12px;padding:3px 8px;')}">−</button>
             <span style="font-family:'DM Mono',monospace;font-size:14px;font-weight:700;color:${T.text};min-width:18px;text-align:center;">${kbOctave}</span>
-            <button onclick="setKbOctave(${kbOctave+1})" ${kbOctave>=6?'disabled':''} style="${btnStyle('default','font-size:12px;padding:3px 8px;')}">+</button>
+            <button onclick="setKbOctave(${kbOctave+1})" ${kbOctave>=7?'disabled':''} style="${btnStyle('default','font-size:12px;padding:3px 8px;')}">+</button>
           </div>
-          <div style="display:flex;gap:3px;flex-wrap:wrap;">
-            ${waveOpts.map(w=>`<button onclick="setKbWaveform('${w}')"
-              style="${btnStyle(kbWaveform===w?'accent2':'default','font-size:10px;padding:3px 8px;border-radius:6px;')}">${w.slice(0,3)}</button>`).join('')}
-          </div>
-          <div style="display:flex;align-items:center;gap:5px;margin-left:auto;">
-            <span style="font-size:10px;color:${T.muted};font-weight:700;text-transform:uppercase;letter-spacing:.06em;"><i class="ti ti-volume"></i></span>
-            <input type="range" min="0" max="1" step="0.05" value="${kbVolume}"
-              oninput="setKbVolume(this.value)"
-              style="width:60px;accent-color:${T.accent2};cursor:pointer;"/>
+          <select onchange="setKbWaveform(this.value)" style="${selectStyle('font-size:11px;padding:4px 7px;')}">
+            ${waveOpts.map(w=>`<option value="${w}" ${kbWaveform===w?'selected':''}>${w}</option>`).join('')}
+          </select>
+          <div style="display:flex;align-items:center;gap:4px;flex:1;min-width:80px;">
+            <i class="ti ti-volume" style="font-size:11px;color:${T.muted};"></i>
+            <input type="range" min="0" max="100" value="${Math.round(kbVolume*100)}" oninput="setKbVolume(this.value/100)" style="flex:1;accent-color:${T.accent2};"/>
           </div>
         </div>
         <!-- Keyboard -->
@@ -215,9 +212,11 @@ registerWidget({
   id: 'tools',
   label: 'Music Tools',
   icon: 'ti-music',
+  category: 'Creative tools',
+  description: 'Metronome, tuner, and keyboard tools for music practice.',
   pinnable: true,
   collapsible: true,
   fullWidth: false,
-  defaultVisible: true,
+  defaultVisible: false,
   render: renderToolsWidget,
 });

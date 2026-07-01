@@ -58,7 +58,12 @@ LAST_STABILIZED: 2026-06-25
         intent: _buildSpectraIntent(systemPrompt, userPrompt, opts),
         riskClass: 'read-only',
         preferredMode: 'local-first',
-        nodeType: opts.nodeType || 'docs',
+        // aiRole is the explicit, purpose-declared role hint (classifier/planner/
+        // reasoner/fallback) — see prism-spectra AI_PROGRESS_LOG.md 2026-06-29.
+        // Defaults to "planner" (matches the old nodeType:'docs' default's
+        // effective behavior) so existing callers that don't pass aiRole keep
+        // their current model/latency rather than silently changing.
+        aiRole: opts.aiRole || 'planner',
         input: {
           systemPrompt: systemPrompt || '',
           userPrompt: userPrompt || '',

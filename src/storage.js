@@ -9,7 +9,7 @@ STATE_WRITES: ID_MIGRATE, T, _saveTimer, alarms, allDefs, answers, audioRecordin
 PUBLIC_API: _flushSave, clearFocusLocalStorage, load, loadAudioMeta, loadWidgetLayout, save, saveAudioMeta, saveNow, saveWidgetLayout
 DEPENDENCIES: see dependency graph
 INVARIANTS: render pure; actions mutate; helpers transform
-LAST_STABILIZED: 2026-06-26
+LAST_STABILIZED: 2026-06-27
 */
 
 // Persistence and startup reads live here so the rest of the app can treat
@@ -194,8 +194,8 @@ function loadWidgetLayout(){
   const allDefs=getRegisteredWidgets();
   try{
     let raw=JSON.parse(localStorage.getItem('adhd4_widget_layout')||'null');
-    // Migrate old IDs; force tools + habits visible for existing users who never had them
-    if(raw) raw=raw.map(w=>({...w, id: ID_MIGRATE[w.id]||w.id, visible: (w.id==='tools'||w.id==='habits')?true:w.visible}))
+    // Migrate old IDs and dedupe merged widgets without forcing music tools open.
+    if(raw) raw=raw.map(w=>({...w, id: ID_MIGRATE[w.id]||w.id}))
                     .filter((w,i,arr)=>arr.findIndex(x=>x.id===w.id)===i); // dedupe merged
     widgetLayout=allDefs.map((def,i)=>{
       const saved=raw?raw.find(x=>x.id===def.id):null;
