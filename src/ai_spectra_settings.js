@@ -4,15 +4,15 @@ LAYER: services/ui patch
 PURPOSE: Make Spectra-first AI visible and easy to initialise from Focus settings.
 USES: ai.js settings globals, ai_adapter_local.js, render_modals.js
 INVARIANTS: Spectra requests stay read-only; no task/planner mutation happens here.
-LAST_STABILIZED: 2026-06-27
+LAST_STABILIZED: 2026-07-01
 */
 (function(){
   const DEFAULT_SPECTRA_URL = 'http://127.0.0.1:3000';
   const DEFAULT_SPECTRA_TOKEN = 'dev-local-token';
-  const SPECTRA_BRANCH = 'spectra-focus-ai-init-20260627';
-  const GATEWAY_COMMAND = 'cd ~/Desktop\nif [ ! -d prism-spectra ]; then git clone https://github.com/devknowsdev/prism-spectra.git; fi\ncd prism-spectra\ngit fetch origin\ngit checkout ' + SPECTRA_BRANCH + '\nnpm install\nAI_FORGE_AI_GATEWAY_TOKEN="dev-local-token" npm run ai:gateway';
-  const REAL_OLLAMA_GATEWAY_COMMAND = 'cd ~/Desktop\nif [ ! -d prism-spectra ]; then git clone https://github.com/devknowsdev/prism-spectra.git; fi\ncd prism-spectra\ngit fetch origin\ngit checkout ' + SPECTRA_BRANCH + '\nnpm install\nAI_FORGE_AI_GATEWAY_TOKEN="dev-local-token" AI_FORGE_MOCK_EXECUTORS=0 npm run ai:gateway';
-  const OLLAMA_CHECK_COMMAND = 'ollama list\nollama pull qwen3:9b\nollama serve';
+  const SPECTRA_REF = 'main';
+  const GATEWAY_COMMAND = 'cd ~/Desktop\nif [ ! -d prism-spectra ]; then git clone https://github.com/devknowsdev/prism-spectra.git; fi\ncd prism-spectra\ngit fetch origin\ngit checkout ' + SPECTRA_REF + '\ngit pull --ff-only origin ' + SPECTRA_REF + '\nnpm install\nAI_FORGE_AI_GATEWAY_TOKEN="dev-local-token" npm run ai:gateway';
+  const REAL_OLLAMA_GATEWAY_COMMAND = 'cd ~/Desktop\nif [ ! -d prism-spectra ]; then git clone https://github.com/devknowsdev/prism-spectra.git; fi\ncd prism-spectra\ngit fetch origin\ngit checkout ' + SPECTRA_REF + '\ngit pull --ff-only origin ' + SPECTRA_REF + '\nnpm install\nAI_FORGE_AI_GATEWAY_TOKEN="dev-local-token" AI_FORGE_MOCK_EXECUTORS=0 npm run ai:gateway';
+  const OLLAMA_CHECK_COMMAND = 'ollama list\nollama pull qwen3.5:9b\nollama pull qwen3:1.7b\nollama pull qwen2.5-coder:7b\nollama serve';
 
   function _esc(value) {
     if (typeof esc === 'function') return esc(String(value ?? ''));
@@ -208,7 +208,7 @@ ${command}
       aiStatus.spectraService = health.service || 'prism-spectra';
       aiStatus.spectraMock = health.mockExecutors === true;
       aiStatus.spectraProvider = 'ollama';
-      aiStatus.spectraModel = aiStatus.spectraModel || 'qwen3:9b';
+      aiStatus.spectraModel = aiStatus.spectraModel || 'qwen3:1.7b';
       aiStatus.spectraBoundary = 'local';
       _setGatewayStatus('provider-error', e && e.message ? e.message : String(e));
       if (typeof showToast === 'function') showToast('Spectra is running, but the AI provider failed', 'warn');

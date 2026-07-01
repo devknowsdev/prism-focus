@@ -4,11 +4,11 @@ LAYER: services/ui patch
 PURPOSE: Add low-risk Focus/Spectra hardening without expanding Focus provider ownership.
 USES: ai_adapter_local.js, ai_chat_spectra_bridge.js, ai_spectra_settings.js
 INVARIANTS: Requests stay read-only; Focus only applies proposed tasks after visible user action.
-LAST_STABILIZED: 2026-06-29
+LAST_STABILIZED: 2026-07-01
 */
 (function(){
   const CHAT_STORAGE_KEY = 'adhd4_spectra_chat_state_v1';
-  const CURRENT_SPECTRA_BRANCH = 'focus-resource-status-20260629';
+  const CURRENT_SPECTRA_REF = 'main';
   const DEFAULT_SPECTRA_URL = 'http://127.0.0.1:3000';
   const DEFAULT_SPECTRA_TOKEN = 'dev-local-token';
   const CURRENT_MODELS = {
@@ -23,7 +23,8 @@ LAST_STABILIZED: 2026-06-29
 if [ ! -d prism-spectra ]; then git clone https://github.com/devknowsdev/prism-spectra.git; fi
 cd prism-spectra
 git fetch origin
-git checkout ${CURRENT_SPECTRA_BRANCH}
+git checkout ${CURRENT_SPECTRA_REF}
+git pull --ff-only origin ${CURRENT_SPECTRA_REF}
 npm install
 AI_FORGE_AI_GATEWAY_TOKEN="${DEFAULT_SPECTRA_TOKEN}" \
 AI_FORGE_MOCK_EXECUTORS=1 \
@@ -33,7 +34,8 @@ npm run ai:gateway`;
 if [ ! -d prism-spectra ]; then git clone https://github.com/devknowsdev/prism-spectra.git; fi
 cd prism-spectra
 git fetch origin
-git checkout ${CURRENT_SPECTRA_BRANCH}
+git checkout ${CURRENT_SPECTRA_REF}
+git pull --ff-only origin ${CURRENT_SPECTRA_REF}
 npm install
 RUN_ID="$(date +%Y%m%d%H%M%S)"
 AI_FORGE_AI_GATEWAY_TOKEN="${DEFAULT_SPECTRA_TOKEN}" \
@@ -328,7 +330,8 @@ ps -Ao pid,comm,%cpu,%mem,rss | sort -k3 -nr | head -20</pre></details>
       html = String(html)
         .replaceAll('qwen3:9b', CURRENT_MODELS.planner)
         .replaceAll('qwen3:8b', CURRENT_MODELS.planner)
-        .replaceAll('spectra-focus-ai-init-20260627', CURRENT_SPECTRA_BRANCH)
+        .replaceAll('spectra-focus-ai-init-20260627', CURRENT_SPECTRA_REF)
+        .replaceAll('focus-resource-status-20260629', CURRENT_SPECTRA_REF)
         .replaceAll('ollama pull qwen3.5:9b\nollama serve', OLLAMA_CHECK_COMMAND)
         .replaceAll('ollama pull qwen3:9b\nollama serve', OLLAMA_CHECK_COMMAND);
 

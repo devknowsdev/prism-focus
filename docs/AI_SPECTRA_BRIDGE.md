@@ -1,6 +1,6 @@
 # Focus AI Spectra Bridge
 
-Last-Updated: 2026-06-29
+Last-Updated: 2026-07-01
 
 ## Purpose
 
@@ -30,7 +30,7 @@ The bridge is loaded after `src/ai.js`, so it wraps existing global helpers inst
 
 ```text
 Focus:   devknowsdev/prism-focus:spectra-focus-ai-init-20260627
-Spectra: devknowsdev/prism-spectra:focus-resource-status-20260629
+Spectra: devknowsdev/prism-spectra:main
 ```
 
 Do not open the Focus PR until local browser validation is clean in mock mode and light real Ollama mode.
@@ -45,7 +45,7 @@ classifier/fallback:      qwen3:1.7b
 coder:                    qwen2.5-coder:7b
 ```
 
-Stale references to `qwen3:8b`, `qwen3:9b`, or Spectra feature branches older than `focus-resource-status-20260629` should be treated as setup-copy bugs unless source is deliberately changed and revalidated.
+Stale references to `qwen3:8b`, `qwen3:9b`, or a Spectra feature branch should be treated as setup-copy bugs unless source is deliberately changed and revalidated.
 
 ## Files changed in the Focus bridge slice
 
@@ -137,15 +137,20 @@ Chat attachments are intentionally text-only / blocked for now. If files are sel
 
 Do not expand direct Focus-to-file-daemon or Focus-to-Ollama attachment handling in this branch.
 
-## Empty real-mode response handling
+## Real-mode response handling
 
-The previous real-mode validation reached Ollama / `qwen3.5:9b`, but Focus displayed:
+Spectra PR #30 fixed the executor-side cause of empty/unstructured Focus chat
+responses by surfacing Focus instructions and using schema-constrained Ollama
+JSON. Final browser validation against merged Spectra `main` rendered:
 
-```text
-I received that, but no response text was returned.
-```
+- a real `ollama / qwen3.5:9b` reply,
+- a structured 10-minute task proposal,
+- visible `Apply proposed tasks` and `Dismiss` controls,
+- no browser console errors.
 
-The hardening patch now keeps the response review-first and shows a targeted diagnostic instead:
+Apply was not clicked, so validation did not import or mutate Focus tasks. The
+hardening patch retains a targeted diagnostic if a provider ever returns an
+empty body:
 
 ```text
 Spectra routed this through <provider> / <model>, but returned an empty response body. I did not create or change any Focus tasks. For debugging, open DevTools and inspect window.lastSpectraEmptyResponse.
@@ -213,7 +218,8 @@ ollama serve
 cd ~/Desktop/prism-spectra
 lsof -tiTCP:3000 -sTCP:LISTEN | xargs -r kill
 git fetch origin
-git checkout focus-resource-status-20260629
+git checkout main
+git pull --ff-only origin main
 npm install
 
 AI_FORGE_AI_GATEWAY_TOKEN="dev-local-token" \
@@ -227,7 +233,8 @@ npm run ai:gateway
 cd ~/Desktop/prism-spectra
 lsof -tiTCP:3000 -sTCP:LISTEN | xargs -r kill
 git fetch origin
-git checkout focus-resource-status-20260629
+git checkout main
+git pull --ff-only origin main
 npm install
 
 RUN_ID="$(date +%Y%m%d%H%M%S)"
@@ -284,7 +291,7 @@ ollama ps
 
 ## Known validation status
 
-Already validated by Dave before this hardening slice:
+Validated:
 
 - Focus static app runs.
 - Focus reaches Spectra `/api/v1/health`.
@@ -294,17 +301,13 @@ Already validated by Dave before this hardening slice:
 - Real Spectra gateway starts with `AI_FORGE_MOCK_EXECUTORS=0`.
 - Ollama models are installed.
 - `qwen3.5:9b` can load.
-- Real Focus chat reached Ollama / `qwen3.5:9b`, but usable response text was empty from Focus's perspective.
+- Real Focus chat renders a structured reply/proposal through Ollama /
+  `qwen3.5:9b` with a clean browser console.
+- Proposal application remains review-first; the final real-mode check did not
+  click Apply or mutate task state.
 
-Not yet validated after this hardening slice by this assistant:
-
-- local `npm run typecheck`,
-- local `npm test`,
-- browser Settings panel render,
-- browser mock-mode chat,
-- browser real-mode classifier smoke,
-- browser empty-response diagnostic path,
-- Apply proposed tasks flow.
+This repository has no npm build/test scripts. Use the architecture validator,
+JavaScript syntax checks, and focused browser validation instead.
 
 ## Future work
 
