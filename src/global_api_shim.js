@@ -1,4 +1,12 @@
 /*
+MODULE: global_api_shim.js
+LAYER: runtime compatibility
+PURPOSE: Supply browser-facing action globals needed by templates and test harnesses.
+USES: shared Focus globals, window, globalThis
+INVARIANTS: Existing implementations are preserved; compatibility fallbacks stay local.
+LAST_STABILIZED: 2026-07-01
+*/
+/*
 Global API shim: define browser-facing action functions referenced by
 render templates and tests. These are minimal implementations or aliases
 that call existing helpers where available, and are mirrored onto

@@ -1,3 +1,11 @@
+/*
+MODULE: ai_adapter_local.js
+LAYER: services/adapter
+PURPOSE: Provide the small Focus-to-Spectra local gateway client surface.
+USES: fetch, localStorage, window.AiAdapter
+INVARIANTS: Defaults target localhost; ordinary AI requests remain read-only.
+LAST_STABILIZED: 2026-07-01
+*/
 // Minimal AiAdapter for prism-focus to talk to the Prism Spectra local daemon/gateway.
 // Defaults to 127.0.0.1:3000 and a dev-local-token unless the user stores a local token.
 // This file intentionally keeps a tiny, stable surface so the dashboard can

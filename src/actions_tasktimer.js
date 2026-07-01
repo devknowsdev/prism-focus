@@ -1,3 +1,11 @@
+/*
+MODULE: actions_tasktimer.js
+LAYER: actions/UI compatibility
+PURPOSE: Provide legacy month-calendar helpers and a safe add-task fallback.
+USES: document, shared task state, window.__calendarUI
+INVARIANTS: Missing DOM targets are no-ops; fallback writes remain local.
+LAST_STABILIZED: 2026-07-01
+*/
 // -----------------------------
 // MONTH CALENDAR VIEW (GRID)
 // -----------------------------
