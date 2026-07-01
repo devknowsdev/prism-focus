@@ -204,7 +204,8 @@ Status: fixed in `src/interaction_fixes.js` by overriding the shim with a robust
 
 1. The month calendar does not yet store per-date scheduled tasks separately from task time. Scheduled task dots/previews are therefore best-effort until the planner owns a real date field per scheduled task.
 2. Some AI/music/browser-media controls intentionally degrade when the relevant optional subsystem is unavailable.
-3. This audit is a source-level and browser-behavior audit, not a full Playwright click test suite.
+3. This audit is not a full Playwright click suite. The focused Spectra AI
+   smoke lives in `tests/browser/focus-ai.spec.js`.
 
 ## Manual smoke checklist
 

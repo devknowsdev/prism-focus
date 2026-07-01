@@ -27,7 +27,7 @@ Key files
 - AI layer: `src/ai.js` (optional; Ollama/Anthropic integration).
 
 Testing
-- Node harness: `node src/test_workflows.js` (expected 331 passing).
+- Node harness: `node src/test_workflows.js` (expected 346 passing).
 - Architecture lint: `python3 tools/validate_architecture.py`.
 
 Developer notes

@@ -1,0 +1,11 @@
+{
+  "name": "prism-focus",
+  "private": true,
+  "scripts": {
+    "test": "node src/test_workflows.js",
+    "test:browser": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.61.1"
+  }
+}
