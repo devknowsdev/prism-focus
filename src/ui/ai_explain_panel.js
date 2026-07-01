@@ -1,4 +1,12 @@
 /*
+MODULE: ui/ai_explain_panel.js
+LAYER: render
+PURPOSE: Render a local AI decision trace, memory context, and preference weights.
+USES: window AI explainability globals, document
+INVARIANTS: Missing traces render an empty state; this panel does not mutate app data.
+LAST_STABILIZED: 2026-07-01
+*/
+/*
 AI EXPLAINABILITY PANEL (UI LAYER)
 Displays reasoning, memory context, and scheduling justification
 */

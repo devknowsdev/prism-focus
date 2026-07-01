@@ -1,3 +1,11 @@
+/*
+MODULE: ai_exec.js
+LAYER: actions/AI command boundary
+PURPOSE: Validate, audit, and execute the legacy whitelist of local AI commands.
+USES: aiSettings, aiAuditLog, shared Focus state
+INVARIANTS: Unknown commands fail closed; configured confirmations precede writes.
+LAST_STABILIZED: 2026-07-01
+*/
 // Minimal AI command executor (safe whitelist, validation, audit)
 
 function aiExecuteCommand(commandJson) {

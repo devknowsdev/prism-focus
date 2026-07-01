@@ -1,3 +1,11 @@
+/*
+MODULE: a11y-fixes.js
+LAYER: UI accessibility patch
+PURPOSE: Add fallback accessible names to dynamically rendered form controls.
+USES: document, MutationObserver
+INVARIANTS: Accessibility repair is best-effort and must not break rendering.
+LAST_STABILIZED: 2026-07-01
+*/
 // Low-risk accessibility fixes applied at DOMContentLoaded.
 // Sets aria-label on inputs/selects/textareas that lack an accessible name,
 // using placeholder, name, id or type as a fallback. This is a pragmatic

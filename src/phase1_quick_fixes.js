@@ -1,4 +1,12 @@
 /*
+MODULE: phase1_quick_fixes.js
+LAYER: runtime compatibility patch
+PURPOSE: Preserve Focus settings and repair legacy globals before initialization.
+USES: aiSettings, localStorage, shared Focus globals
+INVARIANTS: Patches preserve local data and do not introduce external writes.
+LAST_STABILIZED: 2026-07-01
+*/
+/*
 Phase 1 quick fixes loaded before init.js.
 Keeps the fixes isolated while preserving the classic-script global runtime.
 */

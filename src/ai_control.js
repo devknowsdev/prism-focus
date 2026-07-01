@@ -1,4 +1,12 @@
 /*
+MODULE: ai_control.js
+LAYER: AI governance
+PURPOSE: Govern legacy AI feature flags and bounded local feedback history.
+USES: localStorage, window.__AI_CONTROL__
+INVARIANTS: User overrides may disable AI scopes; state remains local.
+LAST_STABILIZED: 2026-07-01
+*/
+/*
 AI CONTROL LAYER
 Central governance system for all AI-driven mutations
 */

@@ -1,4 +1,12 @@
 /*
+MODULE: runtime.js
+LAYER: runtime integration
+PURPOSE: Wire optional legacy AI subsystems and browser/global compatibility APIs.
+USES: window AI subsystem globals, shared Focus state
+INVARIANTS: Missing optional AI adapters leave core Focus behavior available.
+LAST_STABILIZED: 2026-07-01
+*/
+/*
 AI INTEGRATION LAYER (ADDED)
 */
 
