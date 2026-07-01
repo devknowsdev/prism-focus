@@ -306,20 +306,26 @@ Validated:
 - Proposal application remains review-first; the final real-mode check did not
   click Apply or mutate task state.
 
-This repository has no npm build/test scripts. Use the architecture validator,
-JavaScript syntax checks, and focused browser validation instead.
+The app remains build-free. npm scripts now expose the existing Node harness
+and the focused browser smoke; the architecture validator remains a separate
+check.
+
+## Automated browser smoke
+
+`tests/browser/focus-ai.spec.js` intercepts the local Spectra HTTP boundary and
+verifies Settings -> AI, the lightweight classifier connection test, structured
+chat proposals, read-only request metadata, and unchanged task state before
+Apply.
+
+```bash
+npm ci
+npx playwright install chromium
+npm run test:browser
+```
 
 ## Future work
 
-Recommended follow-up:
-
-```text
-Focus-AI-Bridge-003 — add browser smoke test for Settings -> AI Spectra panel and first AI helper action
-```
-
-Possible scope:
-
-- verify the setup wizard and resource/status block in a browser test,
+- extend browser coverage to the full setup wizard,
 - remove duplicate legacy local-daemon controls from the Ollama card,
 - add a small visible status badge in the header Assistant menu,
 - add a stale local gateway DB repair/reset path,

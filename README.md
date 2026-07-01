@@ -83,7 +83,15 @@ Requires Node.js (no npm install):
 node src/test_workflows.js
 ```
 
-Expect **331 passed, 0 failed**.
+Run the mocked Spectra browser smoke (first run also needs
+`npx playwright install chromium`):
+
+```bash
+npm ci
+npm run test:browser
+```
+
+Expect **346 passed, 0 failed**.
 
 Architecture lint (optional):
 
@@ -117,7 +125,7 @@ src/
   render.js         Main render orchestrator
   runtime.js        Global listeners and intervals
   init.js           Boot: load → migrate → render
-  test_workflows.js Node test harness (331 tests)
+  test_workflows.js Node test harness (346 tests)
   state/            Draft ES-module split (not loaded; see state_migration_findings.md)
   ARCHITECTURE.md   Developer map — read before changing code
 tools/
